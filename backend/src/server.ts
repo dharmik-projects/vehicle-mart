@@ -29,9 +29,22 @@ app.use((_req, _res, next) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server
+// Start server — DB must connect before accepting requests
 const start = async () => {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('');
+    console.error('========================================');
+    console.error('  FATAL: MongoDB connection failed');
+    console.error('  ' + (error as Error).message);
+    console.error('  Server will NOT start without database.');
+    console.error('  Check your MONGODB_URI and network.');
+    console.error('========================================');
+    console.error('');
+    process.exit(1);
+  }
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`API available at http://localhost:${PORT}/api`);
@@ -39,5 +52,3 @@ const start = async () => {
 };
 
 start();
-
-export default app;

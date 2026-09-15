@@ -30,6 +30,9 @@ export interface IOrder extends Document {
   tax: number;
   total: number;
   trackingNumber?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   estimatedDelivery?: Date;
   deliveredAt?: Date;
   cancelledAt?: Date;
@@ -82,6 +85,9 @@ const OrderSchema = new Schema<IOrder>(
     tax: { type: Number, default: 0 },
     total: { type: Number, required: true },
     trackingNumber: { type: String },
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+    razorpaySignature: { type: String },
     estimatedDelivery: { type: Date },
     deliveredAt: { type: Date },
     cancelledAt: { type: Date },

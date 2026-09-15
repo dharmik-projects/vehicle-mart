@@ -173,6 +173,11 @@ class ApiClient {
   getOrder = (id: string) => this.fetch(`/orders/${id}`);
   cancelOrder = (id: string, reason?: string) => this.fetch(`/orders/${id}/cancel`, { method: 'PUT', body: { reason } });
 
+  // Payment
+  createRazorpayOrder = (orderId: string) => this.fetch('/payment/create-order', { method: 'POST', body: { orderId } });
+  verifyPayment = (data: any) => this.fetch('/payment/verify', { method: 'POST', body: data });
+  getPaymentKey = () => this.fetch('/payment/key');
+
   // Reviews
   getProductReviews = (productId: string, params?: any) => {
     const q = new URLSearchParams(params).toString();

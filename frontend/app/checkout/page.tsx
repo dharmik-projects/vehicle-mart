@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CreditCard, Banknote, Smartphone, Check } from "lucide-react";
+import { Plus, CreditCard, Banknote, Smartphone, Check, Loader2, ShieldCheck } from "lucide-react";
 import { useAuthStore, useCartStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
@@ -14,15 +14,22 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { items, total } = useCartStore();
+  const { items, total, loadCart } = useCartStore();
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({
     label: 'Home', fullName: '', phone: '', addressLine1: '', addressLine2: '',
@@ -31,9 +38,9 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
-    if (items.length === 0) { router.push('/cart'); return; }
+    if (items.length === 0 && !processing) { router.push('/cart'); return; }
     loadAddresses();
-  }, [user, items, router]);
+  }, [user, items, router, processing]);
 
   const loadAddresses = async () => {
     try {
@@ -61,19 +68,115 @@ export default function CheckoutPage() {
     }
   };
 
+  const loadRazorpayScript = useCallback(() => {
+    return new Promise<boolean>((resolve) => {
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleOnlinePayment = async (order: any) => {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast.error('Failed to load payment gateway. Please try again.');
+      setProcessing(false);
+      return;
+    }
+
+    try {
+      const payData = await api.createRazorpayOrder(order._id);
+
+      // Determine Razorpay method based on payment method selected
+      let razorayMethod: string | string[] | undefined;
+      if (paymentMethod === 'upi') {
+        // Show only UPI options — Razorpay will show UPI QR/Intent
+        razorayMethod = ['upi'];
+      } else if (paymentMethod === 'online') {
+        // Show card/netbanking/wallet options
+        razorayMethod = undefined; // default: show all relevant methods
+      } else {
+        razorayMethod = undefined;
+      }
+
+      const options = {
+        key: payData.keyId,
+        amount: payData.amount,
+        currency: payData.currency,
+        name: 'VehiclePart',
+        description: `Order #${order._id.slice(-8).toUpperCase()}`,
+        order_id: payData.razorpayOrderId,
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: selectedAddress?.phone || '',
+        },
+        theme: { color: '#2563eb' },
+        method: razorayMethod,
+        handler: async (response: any) => {
+          try {
+            await api.verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              orderId: order._id,
+            });
+            toast.success('Payment verified successfully!');
+            loadCart();
+            router.push(`/orders/${order._id}?paid=true`);
+          } catch (err: any) {
+            toast.error('Payment verification failed: ' + err.message);
+            router.push(`/orders/${order._id}?payment_failed=true`);
+          }
+        },
+        modal: {
+          ondismiss: async () => {
+            toast.error('Payment cancelled');
+            router.push(`/orders/${order._id}?payment_cancelled=true`);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', async (response: any) => {
+        toast.error('Payment failed: ' + (response.error?.description || 'Unknown error'));
+        router.push(`/orders/${order._id}?payment_failed=true`);
+      });
+      rzp.open();
+    } catch (err: any) {
+      toast.error(err.message || 'Payment initialization failed');
+      router.push(`/orders/${order._id}?payment_failed=true`);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedAddress) { toast.error('Please select a delivery address'); return; }
     setLoading(true);
+    setProcessing(true);
     try {
       const data = await api.createOrder({
         addressId: selectedAddress._id,
         paymentMethod,
         notes,
       });
-      toast.success('Order placed successfully!');
-      router.push(`/orders/${data.order._id}`);
+      const order = data.order;
+
+      if (paymentMethod === 'cod') {
+        toast.success('Order placed successfully!');
+        loadCart();
+        router.push(`/orders/${order._id}`);
+      } else {
+        await handleOnlinePayment(order);
+      }
     } catch (err: any) {
       toast.error(err.message);
+      setProcessing(false);
     } finally {
       setLoading(false);
     }
@@ -83,8 +186,10 @@ export default function CheckoutPage() {
   const tax = Math.round(total * 0.18);
   const grandTotal = total + shipping + tax;
 
+  const isProcessing = loading || processing;
+
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6 fade-in">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -103,10 +208,10 @@ export default function CheckoutPage() {
                 addresses.map((addr) => (
                   <div
                     key={addr._id}
-                    onClick={() => setSelectedAddress(addr)}
+                    onClick={() => !isProcessing && setSelectedAddress(addr)}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       selectedAddress?._id === addr._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    } ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -133,15 +238,15 @@ export default function CheckoutPage() {
             <CardContent className="space-y-2">
               {[
                 { value: 'cod', label: 'Cash on Delivery', icon: <Banknote className="h-5 w-5" />, desc: 'Pay when your order arrives' },
-                { value: 'online', label: 'Online Payment', icon: <CreditCard className="h-5 w-5" />, desc: 'Credit/Debit Card, Net Banking' },
-                { value: 'upi', label: 'UPI', icon: <Smartphone className="h-5 w-5" />, desc: 'Google Pay, PhonePe, Paytm' },
+                { value: 'online', label: 'Credit / Debit Card', icon: <CreditCard className="h-5 w-5" />, desc: 'Visa, Mastercard, RuPay via Razorpay' },
+                { value: 'upi', label: 'UPI Payment', icon: <Smartphone className="h-5 w-5" />, desc: 'Google Pay, PhonePe, Paytm via Razorpay' },
               ].map((method) => (
                 <div
                   key={method.value}
-                  onClick={() => setPaymentMethod(method.value)}
+                  onClick={() => !isProcessing && setPaymentMethod(method.value)}
                   className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
                     paymentMethod === method.value ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
                 >
                   {method.icon}
                   <div>
@@ -151,6 +256,12 @@ export default function CheckoutPage() {
                   {paymentMethod === method.value && <Check className="h-5 w-5 text-primary ml-auto" />}
                 </div>
               ))}
+              {paymentMethod !== 'cod' && (
+                <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                  <span>Secured by Razorpay. We never store your card details.</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -164,6 +275,7 @@ export default function CheckoutPage() {
                 placeholder="Any special instructions for delivery..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                disabled={isProcessing}
               />
             </CardContent>
           </Card>
@@ -180,21 +292,43 @@ export default function CheckoutPage() {
                 const product = item.product;
                 if (!product) return null;
                 return (
-                  <div key={item._id} className="flex justify-between text-sm">
-                    <span className="truncate mr-2">{product.name} × {item.quantity}</span>
-                    <span className="shrink-0 font-medium">{formatPrice(product.price * item.quantity)}</span>
+                  <div key={item._id} className="flex gap-3 items-center">
+                    <div className="w-12 h-12 bg-gray-50 rounded overflow-hidden shrink-0">
+                      {product.images?.[0]?.url ? (
+                        <img src={product.images[0].url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">📦</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium line-clamp-1">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                    </div>
+                    <p className="text-xs font-bold shrink-0">{formatPrice(product.price * item.quantity)}</p>
                   </div>
                 );
               })}
               <Separator />
               <div className="flex justify-between text-sm"><span>Subtotal</span><span>{formatPrice(total)}</span></div>
-              <div className="flex justify-between text-sm"><span>Shipping</span><span>{shipping === 0 ? 'FREE' : formatPrice(shipping)}</span></div>
-              <div className="flex justify-between text-sm"><span>Tax (GST)</span><span>{formatPrice(tax)}</span></div>
+              <div className="flex justify-between text-sm">
+                <span>Shipping</span>
+                <span>{shipping === 0 ? <span className="text-green-600 font-medium">FREE</span> : formatPrice(shipping)}</span>
+              </div>
+              <div className="flex justify-between text-sm"><span>Tax (GST 18%)</span><span>{formatPrice(tax)}</span></div>
               <Separator />
               <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatPrice(grandTotal)}</span></div>
-              <Button className="w-full" size="lg" onClick={handlePlaceOrder} disabled={loading || !selectedAddress}>
-                {loading ? 'Placing Order...' : 'Place Order'}
+              <Button className="w-full" size="lg" onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddress}>
+                {isProcessing ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+                ) : paymentMethod === 'cod' ? (
+                  'Place Order'
+                ) : (
+                  `Pay ${formatPrice(grandTotal)}`
+                )}
               </Button>
+              {shipping > 0 && (
+                <p className="text-xs text-center text-green-600">Add {formatPrice(500 - total)} more for free shipping!</p>
+              )}
             </CardContent>
           </Card>
         </div>

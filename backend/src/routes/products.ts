@@ -21,9 +21,17 @@ router.get('/', optionalAuth, asyncHandler(async (req: Request, res: Response) =
 
   const filter: any = { isActive: true };
 
-  // Text search
+  // Search — regex across name, brand, SKU, part numbers, description
   if (q) {
-    filter.$text = { $search: q as string };
+    const searchTerm = q as string;
+    filter.$or = [
+      { name: { $regex: searchTerm, $options: 'i' } },
+      { brand: { $regex: searchTerm, $options: 'i' } },
+      { sku: { $regex: searchTerm, $options: 'i' } },
+      { partNumber: { $regex: searchTerm, $options: 'i' } },
+      { oemPartNumber: { $regex: searchTerm, $options: 'i' } },
+      { description: { $regex: searchTerm, $options: 'i' } },
+    ];
   }
 
   if (category) filter.category = category;
@@ -69,7 +77,7 @@ router.get('/', optionalAuth, asyncHandler(async (req: Request, res: Response) =
   else if (sort === 'rating') sortOption = { averageRating: -1 };
   else if (sort === 'popular') sortOption = { totalSales: -1 };
   else if (sort === 'newest') sortOption = { createdAt: -1 };
-  else if (q) sortOption = { score: { $meta: 'textScore' } };
+  else if (q) sortOption = { totalSales: -1 };
 
   const pageNum = parseInt(page as string);
   const limitNum = parseInt(limit as string);

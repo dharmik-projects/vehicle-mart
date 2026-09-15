@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronRight, Package, Truck, Check, Clock, X as XIcon } from "lucide-react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { ChevronRight, Package, Truck, Check, Clock, X as XIcon, Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
@@ -13,6 +13,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const orderSteps = [
   { key: 'pending', label: 'Pending', icon: Clock },
   { key: 'confirmed', label: 'Confirmed', icon: Check },
@@ -21,19 +27,16 @@ const orderSteps = [
   { key: 'delivered', label: 'Delivered', icon: Check },
 ];
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function OrderDetailPage() {
+  const { id } = useParams() as { id: string };
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuthStore();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    loadOrder();
-  }, [user, router]);
-
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     try {
       const data = await api.getOrder(id);
       setOrder(data.order);
@@ -43,7 +46,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (!user) { router.push('/login'); return; }
+    loadOrder();
+  }, [user, router, loadOrder]);
+
+  useEffect(() => {
+    if (searchParams.get('paid') === 'true') {
+      toast.success('Payment confirmed! Your order has been placed.');
+    }
+    if (searchParams.get('payment_failed') === 'true') {
+      toast.error('Payment failed. You can retry below.');
+    }
+    if (searchParams.get('payment_cancelled') === 'true') {
+      toast.error('Payment was cancelled. You can retry below.');
+    }
+  }, [searchParams]);
 
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel this order?')) return;
@@ -56,13 +76,87 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise<boolean>((resolve) => {
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRetryPayment = async () => {
+    setRetrying(true);
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Failed to load payment gateway.');
+        setRetrying(false);
+        return;
+      }
+
+      const payData = await api.createRazorpayOrder(order._id);
+
+      const options = {
+        key: payData.keyId,
+        amount: payData.amount,
+        currency: payData.currency,
+        name: 'VehiclePart',
+        description: `Order #${order._id.slice(-8).toUpperCase()}`,
+        order_id: payData.razorpayOrderId,
+        prefill: { name: user?.name || '', email: user?.email || '' },
+        theme: { color: '#2563eb' },
+        handler: async (response: any) => {
+          try {
+            await api.verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              orderId: order._id,
+            });
+            toast.success('Payment verified!');
+            loadOrder();
+            router.replace(`/orders/${order._id}`);
+          } catch (err: any) {
+            toast.error('Verification failed: ' + err.message);
+            loadOrder();
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast.error('Payment cancelled');
+            setRetrying(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.');
+        setRetrying(false);
+        loadOrder();
+      });
+      rzp.open();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initialize payment');
+      setRetrying(false);
+    }
+  };
+
   if (loading) return <div className="container mx-auto px-4 py-8"><Skeleton className="h-96 rounded-lg" /></div>;
   if (!order) return null;
 
   const currentStepIndex = orderSteps.findIndex((s) => s.key === order.orderStatus);
+  const showPaymentRetry = order.paymentStatus === 'pending' && order.paymentMethod !== 'cod';
+  const showPaymentFailed = order.paymentStatus === 'failed';
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 max-w-4xl fade-in">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
         <Link href="/" className="hover:text-primary">Home</Link>
@@ -80,11 +174,32 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <Badge className={getStatusColor(order.orderStatus)}>{order.orderStatus}</Badge>
       </div>
 
+      {/* Payment Retry Banner */}
+      {(showPaymentRetry || showPaymentFailed) && (
+        <Card className="mb-6 border-orange-200 bg-orange-50">
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  {showPaymentFailed ? 'Payment failed' : 'Payment pending'} — Complete payment to confirm your order
+                </p>
+                <p className="text-xs text-orange-600">Amount: {formatPrice(order.total)}</p>
+              </div>
+            </div>
+            <Button onClick={handleRetryPayment} disabled={retrying} size="sm">
+              {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
+              {retrying ? 'Processing...' : 'Retry Payment'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Order Progress */}
       {!['cancelled', 'returned'].includes(order.orderStatus) && (
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               {orderSteps.map((step, i) => {
                 const isCompleted = i <= currentStepIndex;
                 const isCurrent = i === currentStepIndex;
@@ -96,9 +211,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-xs mt-2 text-center">{step.label}</span>
+                    <span className="text-xs mt-2 text-center hidden sm:block">{step.label}</span>
                     {i < orderSteps.length - 1 && (
-                      <div className={`h-0.5 flex-1 mt-2 ${i < currentStepIndex ? 'bg-primary' : 'bg-gray-200'}`} />
+                      <div className={`h-0.5 w-full mt-2 ${i < currentStepIndex ? 'bg-primary' : 'bg-gray-200'}`} />
                     )}
                   </div>
                 );
@@ -160,12 +275,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Method</span>
-                <span className="capitalize">{order.paymentMethod}</span>
+                <span className="capitalize">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod === 'upi' ? 'UPI' : 'Online Payment'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Status</span>
                 <Badge className={getStatusColor(order.paymentStatus)}>{order.paymentStatus}</Badge>
               </div>
+              {order.razorpayPaymentId && (
+                <div className="flex justify-between text-sm">
+                  <span>Transaction ID</span>
+                  <span className="font-mono text-xs">{order.razorpayPaymentId}</span>
+                </div>
+              )}
               {order.trackingNumber && (
                 <div className="flex justify-between text-sm">
                   <span>Tracking</span>

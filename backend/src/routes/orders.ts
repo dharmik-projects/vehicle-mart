@@ -91,7 +91,7 @@ router.post(
         country: address.country,
       },
       paymentMethod,
-      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
+      paymentStatus: 'pending',
       orderStatus: 'confirmed',
       subtotal,
       shippingCost,
@@ -131,7 +131,75 @@ router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respons
   });
 }));
 
-// Get single order
+// ==================== SELLER ORDER MANAGEMENT ====================
+// (Must be before /:id routes to avoid route conflicts)
+
+// Get seller's orders
+router.get(
+  '/seller/all',
+  authenticate,
+  authorize('seller'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page = '1', limit = '20', status } = req.query;
+    const filter: any = { 'items.seller': req.user!._id };
+    if (status) filter.orderStatus = status;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+
+    const total = await Order.countDocuments(filter);
+    const orders = await Order.find(filter)
+      .populate('user', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    res.json({
+      orders,
+      pagination: getPaginationMeta(total, pageNum, limitNum),
+    });
+  })
+);
+
+// ==================== ADMIN ORDER MANAGEMENT ====================
+// (Must be before /:id routes to avoid route conflicts)
+
+// Get all orders (admin)
+router.get(
+  '/admin/all',
+  authenticate,
+  authorize('admin'),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { page = '1', limit = '20', status, search } = req.query;
+    const filter: any = {};
+    if (status) filter.orderStatus = status;
+    if (search) {
+      filter.$or = [
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+        { 'shippingAddress.phone': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+
+    const total = await Order.countDocuments(filter);
+    const orders = await Order.find(filter)
+      .populate('user', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    res.json({
+      orders,
+      pagination: getPaginationMeta(total, pageNum, limitNum),
+    });
+  })
+);
+
+// Get single order (must be after specific routes)
 router.get('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const order = await Order.findOne({ _id: req.params.id, user: req.user!._id })
     .populate('items.product', 'name slug images')
@@ -164,36 +232,6 @@ router.put('/:id/cancel', authenticate, asyncHandler(async (req: AuthRequest, re
 
   res.json({ message: 'Order cancelled', order });
 }));
-
-// ==================== SELLER ORDER MANAGEMENT ====================
-
-// Get seller's orders
-router.get(
-  '/seller/all',
-  authenticate,
-  authorize('seller'),
-  asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '20', status } = req.query;
-    const filter: any = { 'items.seller': req.user!._id };
-    if (status) filter.orderStatus = status;
-
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-
-    const total = await Order.countDocuments(filter);
-    const orders = await Order.find(filter)
-      .populate('user', 'name email phone')
-      .sort({ createdAt: -1 })
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .lean();
-
-    res.json({
-      orders,
-      pagination: getPaginationMeta(total, pageNum, limitNum),
-    });
-  })
-);
 
 // Update order status (seller)
 router.put(
@@ -229,7 +267,6 @@ router.put(
     if (orderStatus === 'cancelled') {
       order.cancelledAt = new Date();
       order.cancelReason = req.body.reason || 'Cancelled by seller';
-      // Restore stock
       for (const item of order.items) {
         await Product.findByIdAndUpdate(item.product, {
           $inc: { stock: item.quantity, totalSales: -item.quantity },
@@ -239,42 +276,6 @@ router.put(
 
     await order.save();
     res.json({ order });
-  })
-);
-
-// ==================== ADMIN ORDER MANAGEMENT ====================
-
-// Get all orders (admin)
-router.get(
-  '/admin/all',
-  authenticate,
-  authorize('admin'),
-  asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { page = '1', limit = '20', status, search } = req.query;
-    const filter: any = {};
-    if (status) filter.orderStatus = status;
-    if (search) {
-      filter.$or = [
-        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
-        { 'shippingAddress.phone': { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-
-    const total = await Order.countDocuments(filter);
-    const orders = await Order.find(filter)
-      .populate('user', 'name email phone')
-      .sort({ createdAt: -1 })
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .lean();
-
-    res.json({
-      orders,
-      pagination: getPaginationMeta(total, pageNum, limitNum),
-    });
   })
 );
 
