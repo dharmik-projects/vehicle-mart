@@ -22,7 +22,6 @@ import {
   X,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
-import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/seller", label: "Dashboard", icon: LayoutDashboard },
@@ -48,21 +47,17 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!user) return;
-    if (user.role !== "seller" && user.role !== "admin") {
-      router.push("/login");
-    }
+    if (user.role !== "seller" && user.role !== "admin") router.push("/login");
   }, [user, router]);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   if (!user || (user.role !== "seller" && user.role !== "admin")) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Store className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">Access denied. Seller only.</p>
+          <Store className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Access denied. Seller only.</p>
         </div>
       </div>
     );
@@ -76,34 +71,24 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-[calc(100vh-8rem)]">
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside
-        className={`fixed lg:sticky top-0 lg:top-[4.5rem] z-40 h-[calc(100vh-4.5rem)] bg-white border-r transition-all duration-300 flex flex-col ${
-          collapsed ? "w-16" : "w-60"
-        } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        <div className="flex items-center justify-between p-3 border-b">
+      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-white border-r border-gray-200 transition-all duration-300 flex flex-col ${
+        collapsed ? "w-16" : "w-56"
+      } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 h-14 border-b border-gray-100">
           {!collapsed && (
             <div className="flex items-center gap-2">
-              <Store className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-sm">Seller Panel</span>
+              <div className="w-7 h-7 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-bold">VP</div>
+              <span className="font-semibold text-sm text-gray-900">Seller</span>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex p-1 hover:bg-accent rounded"
-          >
+          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-gray-100 rounded-md text-gray-400">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden p-1 hover:bg-accent rounded"
-          >
+          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-gray-100 rounded-md text-gray-400">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -115,8 +100,8 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-primary text-primary-foreground"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-primary text-white"
+                  : "text-gray-600 hover:bg-gray-50"
               }`}
               title={collapsed ? item.label : undefined}
             >
@@ -126,20 +111,12 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
 
-        <div className="p-2 border-t">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
-            title={collapsed ? "Back to Store" : undefined}
-          >
+        <div className="p-2 border-t border-gray-100">
+          <Link href="/" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50" title={collapsed ? "Back to Store" : undefined}>
             <Store className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Back to Store</span>}
           </Link>
-          <button
-            onClick={() => { logout(); router.push("/"); }}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full"
-            title={collapsed ? "Logout" : undefined}
-          >
+          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full" title={collapsed ? "Logout" : undefined}>
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
@@ -147,13 +124,13 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="lg:hidden sticky top-0 z-30 bg-white border-b px-4 py-2 flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-1 hover:bg-accent rounded">
+        <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-600">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Store className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">Seller Panel</span>
+            <div className="w-6 h-6 bg-primary text-white rounded flex items-center justify-center text-[10px] font-bold">VP</div>
+            <span className="font-semibold text-sm text-gray-900">Seller Panel</span>
           </div>
         </div>
         <div className="p-4 lg:p-6">{children}</div>

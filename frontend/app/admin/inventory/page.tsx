@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Tag, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";

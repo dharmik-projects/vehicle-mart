@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, Search, Eye, ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
@@ -20,6 +20,8 @@ export default function SellerOrders() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -31,14 +33,23 @@ export default function SellerOrders() {
       return;
     }
     loadOrders();
-  }, [user, router, page, statusFilter]);
+  }, [user, router, page, statusFilter, debouncedSearch]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const params: any = { page: String(page), limit: "15" };
       if (statusFilter !== "all") params.status = statusFilter;
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getSellerOrders(params);
       setOrders(data.orders || []);
       setPagination(data.pagination);

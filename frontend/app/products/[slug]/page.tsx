@@ -57,10 +57,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         setLoading(true);
         const data = await api.getProduct(slug);
+        if (cancelled) return;
         setProduct(data.product);
 
         if (data.product?._id) {
@@ -68,6 +70,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             api.getRelatedProducts(data.product._id),
             api.getProductReviews(data.product._id),
           ]);
+          if (cancelled) return;
           setRelated(relData.products || []);
           setReviews(revData.reviews || []);
           setRatingBreakdown(revData.ratingBreakdown || []);
@@ -75,19 +78,22 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           if (user) {
             try {
               const wlData = await api.checkWishlist(data.product._id);
-              setWishlisted(wlData.wishlisted);
+              if (!cancelled) setWishlisted(wlData.wishlisted);
             } catch {}
           }
         }
       } catch (err) {
-        toast.error("Product not found");
-        router.push("/products");
+        if (!cancelled) {
+          toast.error("Product not found");
+          router.push("/products");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     load();
-  }, [slug, user, router]);
+    return () => { cancelled = true; };
+  }, [slug]);
 
   const handleAddToCart = async () => {
     if (!user) { router.push("/login"); return; }
@@ -232,16 +238,16 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid md:grid-cols-2 gap-8">
-          <Skeleton className="aspect-square rounded-lg" />
+          <Skeleton className="aspect-square rounded-xl" />
           <div className="space-y-4">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-8 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-10 w-1/3" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-1/3" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-lg" />
           </div>
         </div>
       </div>
@@ -254,9 +260,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const totalReviewCount = ratingBreakdown.reduce((sum: number, r: any) => sum + r.count, 0);
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-6 flex-wrap">
+      <div className="flex items-center gap-1 text-xs text-gray-400 mb-5 flex-wrap">
         <Link href="/" className="hover:text-primary transition-colors">Home</Link>
         <ChevronRight className="h-3 w-3 shrink-0" />
         <Link href="/products" className="hover:text-primary transition-colors">Products</Link>
@@ -269,7 +275,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             <ChevronRight className="h-3 w-3 shrink-0" />
           </>
         )}
-        <span className="text-foreground truncate">{product.name}</span>
+        <span className="text-gray-900 truncate">{product.name}</span>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -277,7 +283,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
         <div>
           <div
             ref={imageContainerRef}
-            className="aspect-square bg-gray-50 rounded-lg overflow-hidden mb-3 relative cursor-crosshair"
+            className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3 relative cursor-crosshair border border-gray-200"
             onMouseEnter={() => setIsZooming(true)}
             onMouseLeave={() => setIsZooming(false)}
             onMouseMove={handleMouseMove}
@@ -314,7 +320,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={`w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all ${i === selectedImage ? "border-primary ring-1 ring-primary" : "border-gray-200 hover:border-gray-300"}`}
+                  className={`w-16 h-16 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${i === selectedImage ? "border-primary ring-1 ring-primary" : "border-gray-200 hover:border-gray-300"}`}
                 >
                   <img src={img.url} alt="" className="w-full h-full object-cover" />
                 </button>
@@ -351,7 +357,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           </div>
 
           {/* Price */}
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-bold text-primary">{formatPrice(product.price)}</span>
               {product.mrp > product.price && (
@@ -387,7 +393,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
           {/* Part Numbers */}
           {(product.partNumber || product.oemPartNumber) && (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
+            <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1 text-sm">
               {product.partNumber && (
                 <div className="flex gap-2"><span className="text-muted-foreground">Part No:</span><span className="font-mono font-medium">{product.partNumber}</span></div>
               )}
@@ -446,34 +452,34 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           )}
 
           {/* Delivery & Features */}
-          <div className="mt-6 space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+          <div className="mt-6 space-y-2.5">
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <Truck className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium">Free Delivery</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-500">
                   {product.price >= 500
                     ? "Eligible for free shipping"
                     : `Add ${formatPrice(500 - product.price)} more for free shipping`}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Estimated delivery: 3-7 business days
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <Shield className="h-5 w-5 text-green-600 shrink-0" />
               <div>
                 <p className="text-sm font-medium">Genuine Parts</p>
-                <p className="text-xs text-muted-foreground">Quality assured genuine spare parts</p>
+                <p className="text-xs text-gray-500">Quality assured genuine spare parts</p>
               </div>
             </div>
             {product.warranty && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <Check className="h-5 w-5 text-green-600 shrink-0" />
                 <div>
                   <p className="text-sm font-medium">Warranty</p>
-                  <p className="text-xs text-muted-foreground">{product.warranty}</p>
+                  <p className="text-xs text-gray-500">{product.warranty}</p>
                 </div>
               </div>
             )}
@@ -531,7 +537,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 {product.compatibility?.length > 0 ? (
                   <div className="space-y-3">
                     {product.compatibility.map((compat: any, i: number) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border">
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
                         <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                           <Check className="h-5 w-5 text-green-600" />
                         </div>
@@ -733,22 +739,22 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       {/* Related Products */}
       {related.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-xl font-bold mb-4">Related Products</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <section className="mt-10">
+          <h2 className="text-lg sm:text-xl font-bold mb-4">Related Products</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {related.map((p: any) => (
               <Link key={p._id} href={`/products/${p.slug}`}>
-                <Card className="hover:shadow-md transition-all h-full group">
-                  <div className="aspect-square bg-gray-50 rounded-t-lg overflow-hidden">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-all h-full group">
+                  <div className="aspect-square bg-gray-50 overflow-hidden">
                     {p.images?.[0]?.url ? (
                       <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="h-10 w-10" /></div>
+                      <div className="w-full h-full flex items-center justify-center"><Package className="h-10 w-10 text-gray-300" /></div>
                     )}
                   </div>
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">{p.brand}</p>
-                    <h3 className="text-sm font-medium line-clamp-2 mt-1 group-hover:text-primary transition-colors">{p.name}</h3>
+                  <div className="p-3">
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wider">{p.brand}</p>
+                    <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mt-0.5 group-hover:text-primary transition-colors">{p.name}</h3>
                     <div className="flex items-center gap-1 mt-1">
                       {p.averageRating > 0 && (
                         <>
@@ -757,9 +763,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         </>
                       )}
                     </div>
-                    <span className="text-sm font-bold mt-1 block">{formatPrice(p.price)}</span>
-                  </CardContent>
-                </Card>
+                    <span className="text-sm font-bold text-gray-900 mt-1 block">{formatPrice(p.price)}</span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>

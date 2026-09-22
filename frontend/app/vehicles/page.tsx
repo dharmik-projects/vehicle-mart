@@ -80,10 +80,10 @@ export default function VehiclesPage() {
           {/* Vehicle Type */}
           <div>
             <label className="text-sm font-medium mb-1 block">Vehicle Type</label>
-            <Select value={vehicleType} onValueChange={(v) => { setVehicleType(v); setSelectedBrand(''); setSelectedModel(''); setSelectedVariant(''); setModels([]); setVariants([]); }}>
+            <Select value={vehicleType || "__all"} onValueChange={(v) => { setVehicleType(v === '__all' ? '' : v); setSelectedBrand(''); setSelectedModel(''); setSelectedVariant(''); setModels([]); setVariants([]); }}>
               <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="__all">All Types</SelectItem>
                 <SelectItem value="2-wheeler">🏍️ 2-Wheeler</SelectItem>
                 <SelectItem value="car">🚗 Car</SelectItem>
                 <SelectItem value="truck">🚛 Truck</SelectItem>
@@ -102,7 +102,7 @@ export default function VehiclesPage() {
               <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
               <SelectContent>
                 {loading ? (
-                  <SelectItem value="">Loading...</SelectItem>
+                  <SelectItem value="__loading">Loading...</SelectItem>
                 ) : (
                   brands.map((b) => (
                     <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>

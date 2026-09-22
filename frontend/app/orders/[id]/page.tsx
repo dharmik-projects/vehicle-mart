@@ -2,22 +2,17 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { ChevronRight, Package, Truck, Check, Clock, X as XIcon, Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { ChevronRight, Package, Truck, Check, Clock, X as XIcon, Loader2, CreditCard, AlertCircle, MapPin } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+declare global { interface Window { Razorpay: any; } }
 
 const orderSteps = [
   { key: 'pending', label: 'Pending', icon: Clock },
@@ -40,12 +35,8 @@ export default function OrderDetailPage() {
     try {
       const data = await api.getOrder(id);
       setOrder(data.order);
-    } catch (err) {
-      console.error(err);
-      toast.error('Order not found');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); toast.error('Order not found'); }
+    finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => {
@@ -54,34 +45,20 @@ export default function OrderDetailPage() {
   }, [user, router, loadOrder]);
 
   useEffect(() => {
-    if (searchParams.get('paid') === 'true') {
-      toast.success('Payment confirmed! Your order has been placed.');
-    }
-    if (searchParams.get('payment_failed') === 'true') {
-      toast.error('Payment failed. You can retry below.');
-    }
-    if (searchParams.get('payment_cancelled') === 'true') {
-      toast.error('Payment was cancelled. You can retry below.');
-    }
+    if (searchParams.get('paid') === 'true') toast.success('Payment confirmed! Your order has been placed.');
+    if (searchParams.get('payment_failed') === 'true') toast.error('Payment failed. You can retry below.');
+    if (searchParams.get('payment_cancelled') === 'true') toast.error('Payment was cancelled. You can retry below.');
   }, [searchParams]);
 
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel this order?')) return;
-    try {
-      await api.cancelOrder(id);
-      toast.success('Order cancelled');
-      loadOrder();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    try { await api.cancelOrder(id); toast.success('Order cancelled'); loadOrder(); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const loadRazorpayScript = () => {
     return new Promise<boolean>((resolve) => {
-      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
-        resolve(true);
-        return;
-      }
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) { resolve(true); return; }
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => resolve(true);
@@ -94,20 +71,11 @@ export default function OrderDetailPage() {
     setRetrying(true);
     try {
       const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error('Failed to load payment gateway.');
-        setRetrying(false);
-        return;
-      }
-
+      if (!scriptLoaded) { toast.error('Failed to load payment gateway.'); setRetrying(false); return; }
       const payData = await api.createRazorpayOrder(order._id);
-
       const options = {
-        key: payData.keyId,
-        amount: payData.amount,
-        currency: payData.currency,
-        name: 'VehiclePart',
-        description: `Order #${order._id.slice(-8).toUpperCase()}`,
+        key: payData.keyId, amount: payData.amount, currency: payData.currency,
+        name: 'VehiclePart', description: `Order #${order._id.slice(-8).toUpperCase()}`,
         order_id: payData.razorpayOrderId,
         prefill: { name: user?.name || '', email: user?.email || '' },
         theme: { color: '#2563eb' },
@@ -122,33 +90,17 @@ export default function OrderDetailPage() {
             toast.success('Payment verified!');
             loadOrder();
             router.replace(`/orders/${order._id}`);
-          } catch (err: any) {
-            toast.error('Verification failed: ' + err.message);
-            loadOrder();
-          }
+          } catch (err: any) { toast.error('Verification failed: ' + err.message); loadOrder(); }
         },
-        modal: {
-          ondismiss: () => {
-            toast.error('Payment cancelled');
-            setRetrying(false);
-          },
-        },
+        modal: { ondismiss: () => { toast.error('Payment cancelled'); setRetrying(false); } },
       };
-
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', () => {
-        toast.error('Payment failed. Please try again.');
-        setRetrying(false);
-        loadOrder();
-      });
+      rzp.on('payment.failed', () => { toast.error('Payment failed. Please try again.'); setRetrying(false); loadOrder(); });
       rzp.open();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to initialize payment');
-      setRetrying(false);
-    }
+    } catch (err: any) { toast.error(err.message || 'Failed to initialize payment'); setRetrying(false); }
   };
 
-  if (loading) return <div className="container mx-auto px-4 py-8"><Skeleton className="h-96 rounded-lg" /></div>;
+  if (loading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8"><Skeleton className="h-96 rounded-xl" /></div>;
   if (!order) return null;
 
   const currentStepIndex = orderSteps.findIndex((s) => s.key === order.orderStatus);
@@ -156,83 +108,81 @@ export default function OrderDetailPage() {
   const showPaymentFailed = order.paymentStatus === 'failed';
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl fade-in">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
+      <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
         <Link href="/" className="hover:text-primary">Home</Link>
         <ChevronRight className="h-3 w-3" />
         <Link href="/orders" className="hover:text-primary">Orders</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
+        <span className="text-gray-900">#{order._id.slice(-8).toUpperCase()}</span>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold">Order #{order._id.slice(-8).toUpperCase()}</h1>
-          <p className="text-sm text-muted-foreground">Placed on {formatDate(order.createdAt)}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Order #{order._id.slice(-8).toUpperCase()}</h1>
+          <p className="text-sm text-gray-500">Placed on {formatDate(order.createdAt)}</p>
         </div>
         <Badge className={getStatusColor(order.orderStatus)}>{order.orderStatus}</Badge>
       </div>
 
       {/* Payment Retry Banner */}
       {(showPaymentRetry || showPaymentFailed) && (
-        <Card className="mb-6 border-orange-200 bg-orange-50">
-          <CardContent className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-orange-600 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-orange-800">
-                  {showPaymentFailed ? 'Payment failed' : 'Payment pending'} — Complete payment to confirm your order
-                </p>
-                <p className="text-xs text-orange-600">Amount: {formatPrice(order.total)}</p>
-              </div>
+        <div className="mb-5 p-4 rounded-xl border border-orange-200 bg-orange-50 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-orange-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-orange-800">
+                {showPaymentFailed ? 'Payment failed' : 'Payment pending'} — Complete payment to confirm your order
+              </p>
+              <p className="text-xs text-orange-600">Amount: {formatPrice(order.total)}</p>
             </div>
-            <Button onClick={handleRetryPayment} disabled={retrying} size="sm">
-              {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
-              {retrying ? 'Processing...' : 'Retry Payment'}
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <Button onClick={handleRetryPayment} disabled={retrying} size="sm" className="rounded-lg shrink-0">
+            {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
+            {retrying ? 'Processing...' : 'Pay Now'}
+          </Button>
+        </div>
       )}
 
       {/* Order Progress */}
       {!['cancelled', 'returned'].includes(order.orderStatus) && (
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              {orderSteps.map((step, i) => {
-                const isCompleted = i <= currentStepIndex;
-                const isCurrent = i === currentStepIndex;
-                const Icon = step.icon;
-                return (
-                  <div key={step.key} className="flex flex-col items-center flex-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      isCompleted ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-500'
-                    } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-xs mt-2 text-center hidden sm:block">{step.label}</span>
-                    {i < orderSteps.length - 1 && (
-                      <div className={`h-0.5 w-full mt-2 ${i < currentStepIndex ? 'bg-primary' : 'bg-gray-200'}`} />
-                    )}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+          <div className="flex items-center">
+            {orderSteps.map((step, i) => {
+              const isCompleted = i <= currentStepIndex;
+              const isCurrent = i === currentStepIndex;
+              const Icon = step.icon;
+              return (
+                <div key={step.key} className="flex flex-col items-center flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                    isCompleted ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'
+                  } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
+                    <Icon className="h-4 w-4" />
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  <span className="text-[10px] sm:text-xs mt-1.5 text-center text-gray-500 hidden sm:block">{step.label}</span>
+                  {i < orderSteps.length - 1 && (
+                    <div className={`absolute h-0.5 w-full ${i < currentStepIndex ? 'bg-primary' : 'bg-gray-200'}`} style={{ display: 'none' }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Progress bar */}
+          <div className="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.max(5, ((currentStepIndex + 1) / orderSteps.length) * 100)}%` }} />
+          </div>
+        </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-5">
         {/* Items */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Order Items</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Items</h3>
+          <div className="space-y-3">
             {order.items.map((item: any, i: number) => (
               <div key={i} className="flex gap-3">
-                <div className="w-14 h-14 bg-gray-50 rounded overflow-hidden shrink-0">
+                <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden shrink-0">
                   {item.image ? (
                     <img src={item.image} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -240,70 +190,74 @@ export default function OrderDetailPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium line-clamp-1">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                  <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
+                  <p className="text-xs text-gray-500">Qty: {item.quantity} × {formatPrice(item.price)}</p>
                 </div>
-                <p className="text-sm font-bold shrink-0">{formatPrice(item.price * item.quantity)}</p>
+                <p className="text-sm font-bold text-gray-900 shrink-0">{formatPrice(item.price * item.quantity)}</p>
               </div>
             ))}
+          </div>
+          <Separator className="my-3" />
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{formatPrice(order.tax)}</span></div>
             <Separator />
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
-              <div className="flex justify-between"><span>Shipping</span><span>{order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost)}</span></div>
-              <div className="flex justify-between"><span>Tax</span><span>{formatPrice(order.tax)}</span></div>
-              <Separator />
-              <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatPrice(order.total)}</span></div>
-            </div>
-          </CardContent>
-        </Card>
+            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatPrice(order.total)}</span></div>
+          </div>
+        </div>
 
         {/* Details */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Shipping Address</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm font-medium">{order.shippingAddress.fullName}</p>
-              <p className="text-sm">{order.shippingAddress.phone}</p>
-              <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine1}</p>
-              {order.shippingAddress.addressLine2 && <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine2}</p>}
-              <p className="text-sm text-muted-foreground">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
-            </CardContent>
-          </Card>
+        <div className="space-y-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-gray-900">Shipping Address</h3>
+            </div>
+            <p className="text-sm font-medium">{order.shippingAddress.fullName}</p>
+            <p className="text-sm text-gray-500">{order.shippingAddress.phone}</p>
+            <p className="text-sm text-gray-500">{order.shippingAddress.addressLine1}</p>
+            {order.shippingAddress.addressLine2 && <p className="text-sm text-gray-500">{order.shippingAddress.addressLine2}</p>}
+            <p className="text-sm text-gray-500">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Payment</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-gray-900">Payment</h3>
+            </div>
+            <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Method</span>
-                <span className="capitalize">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod === 'upi' ? 'UPI' : 'Online Payment'}</span>
+                <span className="text-gray-500">Method</span>
+                <span className="font-medium capitalize">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod === 'upi' ? 'UPI' : 'Online Payment'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Status</span>
-                <Badge className={getStatusColor(order.paymentStatus)}>{order.paymentStatus}</Badge>
+                <span className="text-gray-500">Status</span>
+                <Badge className={getStatusColor(order.paymentStatus) + ' text-[10px]'}>{order.paymentStatus}</Badge>
               </div>
               {order.razorpayPaymentId && (
                 <div className="flex justify-between text-sm">
-                  <span>Transaction ID</span>
-                  <span className="font-mono text-xs">{order.razorpayPaymentId}</span>
+                  <span className="text-gray-500">Transaction ID</span>
+                  <span className="font-mono text-xs text-gray-600">{order.razorpayPaymentId}</span>
                 </div>
               )}
               {order.trackingNumber && (
                 <div className="flex justify-between text-sm">
-                  <span>Tracking</span>
-                  <span className="font-mono">{order.trackingNumber}</span>
+                  <span className="text-gray-500">Tracking</span>
+                  <span className="font-mono text-xs">{order.trackingNumber}</span>
                 </div>
               )}
               {order.estimatedDelivery && (
                 <div className="flex justify-between text-sm">
-                  <span>Est. Delivery</span>
+                  <span className="text-gray-500">Est. Delivery</span>
                   <span>{formatDate(order.estimatedDelivery)}</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {['pending', 'confirmed'].includes(order.orderStatus) && (
-            <Button variant="destructive" className="w-full" onClick={handleCancel}>
+            <Button variant="destructive" className="w-full rounded-lg" onClick={handleCancel}>
               Cancel Order
             </Button>
           )}

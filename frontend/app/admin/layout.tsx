@@ -24,7 +24,6 @@ import {
   Boxes,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
-import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -50,21 +49,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!user) return;
-    if (user.role !== "admin") {
-      router.push("/");
-    }
+    if (user.role !== "admin") router.push("/");
   }, [user, router]);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   if (!user || user.role !== "admin") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">Access denied. Admin only.</p>
+          <Shield className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Access denied. Admin only.</p>
         </div>
       </div>
     );
@@ -77,43 +72,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)]">
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:sticky top-0 lg:top-[4.5rem] z-40 h-[calc(100vh-4.5rem)] bg-white border-r transition-all duration-300 flex flex-col ${
-          collapsed ? "w-16" : "w-60"
-        } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between p-3 border-b">
+      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-gray-900 text-gray-300 transition-all duration-300 flex flex-col ${
+        collapsed ? "w-16" : "w-56"
+      } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 h-14 border-b border-gray-800">
           {!collapsed && (
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-sm">Admin Panel</span>
+              <div className="w-7 h-7 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-bold">VP</div>
+              <span className="font-semibold text-sm text-white">Admin</span>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex p-1 hover:bg-accent rounded"
-          >
+          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-gray-800 rounded-md text-gray-500">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden p-1 hover:bg-accent rounded"
-          >
+          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-gray-800 rounded-md text-gray-500">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Nav items */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {navItems.map((item) => (
             <Link
@@ -121,8 +102,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-primary text-primary-foreground"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-primary text-white"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
               }`}
               title={collapsed ? item.label : undefined}
             >
@@ -132,37 +113,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        {/* Sidebar footer */}
-        <div className="p-2 border-t">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
-            title={collapsed ? "Back to Store" : undefined}
-          >
+        <div className="p-2 border-t border-gray-800">
+          <Link href="/" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white" title={collapsed ? "Back to Store" : undefined}>
             <Store className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Back to Store</span>}
           </Link>
-          <button
-            onClick={() => { logout(); router.push("/"); }}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full"
-            title={collapsed ? "Logout" : undefined}
-          >
+          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-900/20 hover:text-red-300 w-full" title={collapsed ? "Logout" : undefined}>
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 min-w-0">
-        {/* Mobile header bar */}
-        <div className="lg:hidden sticky top-0 z-30 bg-white border-b px-4 py-2 flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-1 hover:bg-accent rounded">
+        <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-600">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">Admin Panel</span>
+            <span className="font-semibold text-sm text-gray-900">Admin Panel</span>
           </div>
         </div>
         <div className="p-4 lg:p-6">{children}</div>

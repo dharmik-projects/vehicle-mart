@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Search, Edit, Trash2, Upload, X, Package,
@@ -58,6 +58,8 @@ export default function SellerProducts() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [form, setForm] = useState({
     name: "", description: "", brand: "", category: "", price: "", mrp: "",
@@ -85,14 +87,23 @@ export default function SellerProducts() {
     loadProducts();
     loadCategories();
     loadBrands();
-  }, [user, router, page, statusFilter, search]);
+  }, [user, router, page, statusFilter, debouncedSearch]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
 
   const loadProducts = async () => {
     try {
       setLoading(true);
       const params: any = { page: String(page), limit: "12" };
       if (statusFilter !== "all") params.status = statusFilter;
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getSellerProducts(params);
       setProducts(data.products || []);
       setPagination(data.pagination);
@@ -639,10 +650,10 @@ export default function SellerProducts() {
                         </div>
                         <div>
                           <Label className="text-xs">Brand</Label>
-                          <Select value={entry.brand} onValueChange={(v) => handleBrandChange(idx, v)}>
+                          <Select value={entry.brand || "__any"} onValueChange={(v) => handleBrandChange(idx, v === '__any' ? '' : v)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any brand" /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Any Brand</SelectItem>
+                              <SelectItem value="__any">Any Brand</SelectItem>
                               {brands.filter((b: any) => !entry.vehicleType || b.vehicleType?.includes(entry.vehicleType)).map((b: any) => (
                                 <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
                               ))}
@@ -654,10 +665,10 @@ export default function SellerProducts() {
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-xs">Model</Label>
-                            <Select value={entry.vehicleModel} onValueChange={(v) => handleModelChange(idx, v)}>
+                            <Select value={entry.vehicleModel || "__any"} onValueChange={(v) => handleModelChange(idx, v === '__any' ? '' : v)}>
                               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={loadingModels ? "Loading..." : "Any model"} /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Any Model</SelectItem>
+                                <SelectItem value="__any">Any Model</SelectItem>
                                 {models.map((m: any) => (
                                   <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
                                 ))}
@@ -667,10 +678,10 @@ export default function SellerProducts() {
                           {entry.vehicleModel && (
                             <div>
                               <Label className="text-xs">Variant</Label>
-                              <Select value={entry.variant} onValueChange={(v) => handleVariantChange(idx, v)}>
+                              <Select value={entry.variant || "__any"} onValueChange={(v) => handleVariantChange(idx, v === '__any' ? '' : v)}>
                                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={loadingVariants ? "Loading..." : "Any variant"} /></SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">Any Variant</SelectItem>
+                                  <SelectItem value="__any">Any Variant</SelectItem>
                                   {variants.map((v: any) => (
                                     <SelectItem key={v._id} value={v._id}>{v.name} ({v.yearFrom}-{v.yearTo || "present"})</SelectItem>
                                   ))}
