@@ -41,23 +41,30 @@ const navItems = [
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const logout = useAuthStore((s) => s.logout);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Defense in depth (AppShell gates too): sellers only, redirect everyone else.
   useEffect(() => {
-    if (!user) return;
-    if (user.role !== "seller" && user.role !== "admin") router.push("/login");
-  }, [user, router]);
+    if (authLoading) return;
+    if (!user) { router.replace("/login"); return; }
+    if (user.role === "admin") { router.replace("/admin"); return; }
+    if (user.role === "user") router.replace("/");
+  }, [user, authLoading, router]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  if (!user || (user.role !== "seller" && user.role !== "admin")) {
+  if (!user || user.role !== "seller") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Store className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Access denied. Seller only.</p>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Store className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">Access denied. Seller only.</p>
         </div>
       </div>
     );
@@ -69,26 +76,26 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)]">
+    <div className="flex min-h-[calc(100vh-3.5rem)]">
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-white border-r border-gray-200 transition-all duration-300 flex flex-col ${
+      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300 flex flex-col ${
         collapsed ? "w-16" : "w-56"
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-3 h-14 border-b border-gray-100">
+        <div className="flex items-center justify-between px-3 h-14 border-b border-border">
           {!collapsed && (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-primary text-white rounded-lg flex items-center justify-center text-xs font-bold">VP</div>
-              <span className="font-semibold text-sm text-gray-900">Seller</span>
+              <div className="w-7 h-7 bg-primary text-primary-foreground rounded-lg flex items-center justify-center text-xs font-bold">VP</div>
+              <span className="font-semibold text-sm text-foreground">Seller</span>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-gray-100 rounded-md text-gray-400">
+          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-gray-100 rounded-md text-gray-400">
+          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -100,8 +107,8 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-primary text-white"
-                  : "text-gray-600 hover:bg-gray-50"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
               title={collapsed ? item.label : undefined}
             >
@@ -111,12 +118,8 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
 
-        <div className="p-2 border-t border-gray-100">
-          <Link href="/" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50" title={collapsed ? "Back to Store" : undefined}>
-            <Store className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Back to Store</span>}
-          </Link>
-          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full" title={collapsed ? "Logout" : undefined}>
+        <div className="p-2 border-t border-border">
+          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full" title={collapsed ? "Logout" : undefined}>
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
@@ -124,13 +127,13 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-600">
+        <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 py-2 flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-muted rounded-md text-muted-foreground">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary text-white rounded flex items-center justify-center text-[10px] font-bold">VP</div>
-            <span className="font-semibold text-sm text-gray-900">Seller Panel</span>
+            <div className="w-6 h-6 bg-primary text-primary-foreground rounded flex items-center justify-center text-xs font-bold">VP</div>
+            <span className="font-semibold text-sm text-foreground">Seller Panel</span>
           </div>
         </div>
         <div className="p-4 lg:p-6">{children}</div>

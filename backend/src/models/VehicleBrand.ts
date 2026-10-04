@@ -23,5 +23,7 @@ const VehicleBrandSchema = new Schema<IVehicleBrand>(
 
 VehicleBrandSchema.index({ slug: 1 });
 VehicleBrandSchema.index({ vehicleType: 1 });
+// Selector query: { isActive: true } sorted by name
+VehicleBrandSchema.index({ isActive: 1, name: 1 });
 
 export default mongoose.model<IVehicleBrand>('VehicleBrand', VehicleBrandSchema);

@@ -10,9 +10,10 @@ import Review from '../models/Review';
 import Coupon from '../models/Coupon';
 import Notification from '../models/Notification';
 import ProductCompatibility from '../models/ProductCompatibility';
-import { AuthRequest, authenticate, authorize } from '../middleware/auth';
+import { AuthRequest, authenticate, authorize, clearUserCache } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
-import { getPaginationMeta, generateSlug } from '../utils/helpers';
+import { getPaginationMeta, generateSlug, parsePagination, escapeRegex } from '../utils/helpers';
+import { transitionOrder } from '../utils/orderLifecycle';
 
 const asyncHandler = (fn: (req: AuthRequest, res: Response, next: NextFunction) => Promise<any>) =>
   (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -26,50 +27,78 @@ router.use(authenticate, authorize('admin'));
 // ==================== DASHBOARD ====================
 
 router.get('/dashboard', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
   const [
-    totalUsers, totalSellers, pendingSellers, totalProducts, activeProducts,
-    pendingProducts, inactiveProducts, totalOrders, pendingOrders, deliveredOrders,
-    cancelledOrders, totalRevenue, revenueAgg, lowStockProducts, recentOrders,
+    totalUsers, totalSellers, pendingSellers,
+    activeProducts, pendingProducts, inactiveProducts,
+    orderDistribution, revenueAgg, pendingAgg,
+    monthlyRevenue, lowStockProducts, recentOrders, topSellingProducts,
   ] = await Promise.all([
     User.countDocuments({ role: 'user' }),
     User.countDocuments({ role: 'seller' }),
     User.countDocuments({ role: 'seller', 'sellerInfo.isApproved': false }),
-    Product.countDocuments(),
     Product.countDocuments({ isActive: true, isApproved: true }),
     Product.countDocuments({ isApproved: false, isActive: true }),
     Product.countDocuments({ isActive: false }),
-    Order.countDocuments(),
-    Order.countDocuments({ orderStatus: 'pending' }),
-    Order.countDocuments({ orderStatus: 'delivered' }),
-    Order.countDocuments({ orderStatus: 'cancelled' }),
-    Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
-    Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, avg: { $avg: '$total' }, count: { $sum: 1 } } }]),
+    // One scan of the orders collection yields every status/payment count.
+    Order.aggregate([
+      { $group: { _id: { s: '$orderStatus', p: '$paymentStatus' }, n: { $sum: 1 } } },
+    ]),
+    // Collected revenue: verified/paid money, excluding cancelled & returned orders.
+    Order.aggregate([
+      { $match: { paymentStatus: 'paid', orderStatus: { $nin: ['cancelled', 'returned'] } } },
+      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 }, avg: { $avg: '$total' } } },
+    ]),
+    // Still-collectible money: not yet collected, on live orders only.
+    Order.aggregate([
+      { $match: { paymentStatus: { $in: ['pending', 'failed'] }, orderStatus: { $nin: ['cancelled', 'returned'] } } },
+      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+    ]),
+    Order.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo }, paymentStatus: 'paid', orderStatus: { $nin: ['cancelled', 'returned'] } } },
+      { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]),
     Product.countDocuments({ isActive: true, isApproved: true, stock: { $lte: 5 } }),
     Order.find().populate('user', 'name email').sort({ createdAt: -1 }).limit(10).lean(),
+    Product.find({ isActive: true, isApproved: true }).sort({ totalSales: -1 }).limit(5).select('name totalSales price images').lean(),
   ]);
 
-  const revenue = totalRevenue.length > 0 ? totalRevenue[0].total : 0;
+  // Derive every order card from the single joint distribution.
+  let totalOrders = 0;
+  let paidOrders = 0;
+  let pendingPayments = 0;
+  let refundedOrders = 0;
+  const statusCount: Record<string, number> = {};
+  for (const row of orderDistribution) {
+    const s: string = row._id?.s;
+    const p: string = row._id?.p;
+    totalOrders += row.n;
+    statusCount[s] = (statusCount[s] || 0) + row.n;
+    // "Paid orders" = money actually collected on a live order.
+    if (p === 'paid' && s !== 'cancelled' && s !== 'returned') paidOrders += row.n;
+    // Awaiting payment: payment not completed and the order is still live.
+    if ((p === 'pending' || p === 'failed') && s !== 'cancelled' && s !== 'returned') pendingPayments += row.n;
+    if (p === 'refunded') refundedOrders += row.n;
+  }
+  const ordersByStatus = Object.entries(statusCount).map(([status, count]) => ({ _id: status, count }));
+
+  const totalProducts = activeProducts + pendingProducts + inactiveProducts;
+  const totalRevenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
   const avgOrderValue = revenueAgg.length > 0 ? Math.round(revenueAgg[0].avg) : 0;
-
-  const ordersByStatus = await Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]);
-
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-  const monthlyRevenue = await Order.aggregate([
-    { $match: { createdAt: { $gte: sixMonthsAgo }, paymentStatus: 'paid' } },
-    { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
-    { $sort: { '_id.year': 1, '_id.month': 1 } },
-  ]);
-
-  const topSellingProducts = await Product.find({ isActive: true, isApproved: true })
-    .sort({ totalSales: -1 }).limit(5).select('name totalSales price images').lean();
+  const pendingRevenue = pendingAgg.length > 0 ? pendingAgg[0].total : 0;
 
   res.json({
     stats: {
       totalUsers, totalSellers, pendingSellers, totalProducts, activeProducts,
-      pendingProducts, inactiveProducts, totalOrders, pendingOrders, deliveredOrders,
-      cancelledOrders, totalRevenue: revenue, avgOrderValue, lowStockProducts,
+      pendingProducts, inactiveProducts, totalOrders,
+      pendingOrders: statusCount['pending'] || 0,
+      deliveredOrders: statusCount['delivered'] || 0,
+      cancelledOrders: statusCount['cancelled'] || 0,
+      paidOrders, pendingPayments, refundedOrders,
+      totalRevenue, pendingRevenue, avgOrderValue, lowStockProducts,
       ordersByStatus, monthlyRevenue, recentOrders, topSellingProducts,
     },
   });
@@ -78,21 +107,23 @@ router.get('/dashboard', asyncHandler(async (_req: AuthRequest, res: Response) =
 // ==================== USER MANAGEMENT ====================
 
 router.get('/users', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20', role, search } = req.query;
+  const { role, search } = req.query;
   const filter: any = {};
   if (role) filter.role = role;
   if (search) {
+    const term = escapeRegex(String(search));
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { name: { $regex: term, $options: 'i' } },
+      { email: { $regex: term, $options: 'i' } },
     ];
   }
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await User.countDocuments(filter);
-  const users = await User.find(filter).select('-password -refreshToken')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ users, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, users] = await Promise.all([
+    User.countDocuments(filter),
+    User.find(filter).select('-password -refreshToken')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ users, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.get('/users/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -112,12 +143,14 @@ router.put('/users/:id', asyncHandler(async (req: AuthRequest, res: Response) =>
   const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
     .select('-password -refreshToken');
   if (!user) throw new AppError('User not found', 404);
+  clearUserCache(req.params.id);
   res.json({ user });
 }));
 
 router.delete('/users/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
   const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
   if (!user) throw new AppError('User not found', 404);
+  clearUserCache(req.params.id);
   res.json({ message: 'User deactivated' });
 }));
 
@@ -125,29 +158,32 @@ router.put('/users/:id/activate', asyncHandler(async (req: AuthRequest, res: Res
   const user = await User.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true })
     .select('-password -refreshToken');
   if (!user) throw new AppError('User not found', 404);
+  clearUserCache(req.params.id);
   res.json({ user });
 }));
 
 // ==================== SELLER MANAGEMENT ====================
 
 router.get('/sellers', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20', approved, search } = req.query;
+  const { approved, search } = req.query;
   const filter: any = { role: 'seller' };
   if (approved === 'true') filter['sellerInfo.isApproved'] = true;
   else if (approved === 'false') filter['sellerInfo.isApproved'] = false;
   if (search) {
+    const term = escapeRegex(String(search));
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { 'sellerInfo.businessName': { $regex: search, $options: 'i' } },
+      { name: { $regex: term, $options: 'i' } },
+      { email: { $regex: term, $options: 'i' } },
+      { 'sellerInfo.businessName': { $regex: term, $options: 'i' } },
     ];
   }
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await User.countDocuments(filter);
-  const sellers = await User.find(filter).select('-password -refreshToken')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ sellers, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, sellers] = await Promise.all([
+    User.countDocuments(filter),
+    User.find(filter).select('-password -refreshToken')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ sellers, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.put('/sellers/:id/approve', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -155,6 +191,7 @@ router.put('/sellers/:id/approve', asyncHandler(async (req: AuthRequest, res: Re
   if (!user || user.role !== 'seller') throw new AppError('Seller not found', 404);
   user.sellerInfo!.isApproved = true;
   await user.save();
+  clearUserCache(String(user._id));
   await Notification.create({
     user: user._id, title: 'Seller Application Approved',
     message: 'Your seller account has been approved. You can now list products.', type: 'success',
@@ -167,6 +204,7 @@ router.put('/sellers/:id/reject', asyncHandler(async (req: AuthRequest, res: Res
   if (!user || user.role !== 'seller') throw new AppError('Seller not found', 404);
   user.sellerInfo!.isApproved = false;
   await user.save();
+  clearUserCache(String(user._id));
   await Notification.create({
     user: user._id, title: 'Seller Application Rejected',
     message: 'Your seller application has been rejected. Please contact support for details.', type: 'error',
@@ -179,34 +217,37 @@ router.put('/sellers/:id/toggle', asyncHandler(async (req: AuthRequest, res: Res
   if (!user || user.role !== 'seller') throw new AppError('Seller not found', 404);
   user.isActive = !user.isActive;
   await user.save();
+  clearUserCache(String(user._id));
   res.json({ user: user.toJSON() });
 }));
 
 // ==================== PRODUCT MANAGEMENT ====================
 
 router.get('/products', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20', status, search, category, seller } = req.query;
+  const { status, search, category, seller } = req.query;
   const filter: any = {};
   if (status === 'approved') { filter.isApproved = true; filter.isActive = true; }
   else if (status === 'pending') { filter.isApproved = false; filter.isActive = true; }
   else if (status === 'inactive') { filter.isActive = false; }
   if (search) {
+    const term = escapeRegex(String(search));
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { sku: { $regex: search, $options: 'i' } },
-      { brand: { $regex: search, $options: 'i' } },
+      { name: { $regex: term, $options: 'i' } },
+      { sku: { $regex: term, $options: 'i' } },
+      { brand: { $regex: term, $options: 'i' } },
     ];
   }
   if (category) filter.category = category;
   if (seller) filter.seller = seller;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Product.countDocuments(filter);
-  const products = await Product.find(filter)
-    .populate('category', 'name slug')
-    .populate('seller', 'name email sellerInfo.businessName')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ products, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, products] = await Promise.all([
+    Product.countDocuments(filter),
+    Product.find(filter)
+      .populate('category', 'name slug')
+      .populate('seller', 'name email sellerInfo.businessName')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ products, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.put('/products/:id/approve', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -250,16 +291,17 @@ router.put('/products/:id/stock', asyncHandler(async (req: AuthRequest, res: Res
 // ==================== ORDER MANAGEMENT ====================
 
 router.get('/orders', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20', status, paymentStatus } = req.query;
+  const { status, paymentStatus } = req.query;
   const filter: any = {};
   if (status) filter.orderStatus = status;
   if (paymentStatus) filter.paymentStatus = paymentStatus;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Order.countDocuments(filter);
-  const orders = await Order.find(filter).populate('user', 'name email phone')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ orders, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, orders] = await Promise.all([
+    Order.countDocuments(filter),
+    Order.find(filter).populate('user', 'name email phone')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ orders, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.get('/orders/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -271,28 +313,31 @@ router.get('/orders/:id', asyncHandler(async (req: AuthRequest, res: Response) =
 }));
 
 router.put('/orders/:id/status', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { orderStatus, trackingNumber } = req.body;
-  const order = await Order.findById(req.params.id);
-  if (!order) throw new AppError('Order not found', 404);
-  order.orderStatus = orderStatus;
-  if (trackingNumber) order.trackingNumber = trackingNumber;
-  if (orderStatus === 'delivered') order.deliveredAt = new Date();
-  if (orderStatus === 'cancelled') order.cancelledAt = new Date();
-  await order.save();
+  const { orderStatus, trackingNumber, reason } = req.body;
+  if (!orderStatus || typeof orderStatus !== 'string') {
+    throw new AppError('Order status is required', 400);
+  }
+  // Shared state machine: validates the transition and applies stock/payment
+  // side effects exactly once (same rules as the seller route).
+  const { order } = await transitionOrder(req.params.id, orderStatus, {
+    trackingNumber,
+    reason,
+    cancelReason: reason,
+  });
   res.json({ order });
 }));
 
 // ==================== REVIEW MANAGEMENT ====================
 
 router.get('/reviews', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20' } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Review.countDocuments();
-  const reviews = await Review.find()
-    .populate('user', 'name email').populate('product', 'name slug')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ reviews, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, reviews] = await Promise.all([
+    Review.countDocuments(),
+    Review.find()
+      .populate('user', 'name email').populate('product', 'name slug')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ reviews, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.delete('/reviews/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -377,13 +422,12 @@ router.delete('/variants/:id', asyncHandler(async (req: AuthRequest, res: Respon
 // ==================== COUPON MANAGEMENT ====================
 
 router.get('/coupons', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20' } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Coupon.countDocuments();
-  const coupons = await Coupon.find().sort({ createdAt: -1 })
-    .skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ coupons, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, coupons] = await Promise.all([
+    Coupon.countDocuments(),
+    Coupon.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ coupons, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.post('/coupons', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -413,13 +457,13 @@ router.delete('/coupons/:id', asyncHandler(async (req: AuthRequest, res: Respons
 // ==================== NOTIFICATION MANAGEMENT ====================
 
 router.get('/notifications', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20' } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Notification.countDocuments();
-  const notifications = await Notification.find().populate('user', 'name email')
-    .sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ notifications, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, notifications] = await Promise.all([
+    Notification.countDocuments(),
+    Notification.find().populate('user', 'name email')
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ notifications, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 router.post('/notifications', asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -437,16 +481,17 @@ router.put('/notifications/:id/read', asyncHandler(async (req: AuthRequest, res:
 // ==================== INVENTORY / LOW STOCK ====================
 
 router.get('/inventory', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { page = '1', limit = '20', lowStock } = req.query;
+  const { lowStock } = req.query;
   const filter: any = { isActive: true, isApproved: true };
   if (lowStock === 'true') filter.stock = { $lte: 5 };
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
-  const total = await Product.countDocuments(filter);
-  const products = await Product.find(filter)
-    .populate('category', 'name').populate('seller', 'name sellerInfo.businessName')
-    .sort({ stock: 1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean();
-  res.json({ products, pagination: getPaginationMeta(total, pageNum, limitNum) });
+  const { page, limit, skip } = parsePagination(req.query, 20, 100);
+  const [total, products] = await Promise.all([
+    Product.countDocuments(filter),
+    Product.find(filter)
+      .populate('category', 'name').populate('seller', 'name sellerInfo.businessName')
+      .sort({ stock: 1 }).skip(skip).limit(limit).lean(),
+  ]);
+  res.json({ products, pagination: getPaginationMeta(total, page, limit) });
 }));
 
 export default router;

@@ -34,5 +34,8 @@ const VehicleVariantSchema = new Schema<IVehicleVariant>(
 VehicleVariantSchema.index({ vehicleModel: 1 });
 VehicleVariantSchema.index({ slug: 1 });
 VehicleVariantSchema.index({ fuelType: 1 });
+// Active variant pickers: newest-models first and per-model cascades
+VehicleVariantSchema.index({ isActive: 1, yearFrom: -1 });
+VehicleVariantSchema.index({ vehicleModel: 1, isActive: 1 });
 
 export default mongoose.model<IVehicleVariant>('VehicleVariant', VehicleVariantSchema);

@@ -37,6 +37,7 @@ export interface IOrder extends Document {
   deliveredAt?: Date;
   cancelledAt?: Date;
   cancelReason?: string;
+  stockRestoredAt?: Date | null;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -92,15 +93,22 @@ const OrderSchema = new Schema<IOrder>(
     deliveredAt: { type: Date },
     cancelledAt: { type: Date },
     cancelReason: { type: String },
+    // Set exactly once when reserved stock is given back (cancel / return approval).
+    // Undefined/null = stock for this order is still held (decremented at creation).
+    stockRestoredAt: { type: Date, default: null },
     notes: { type: String },
   },
   { timestamps: true }
 );
 
-OrderSchema.index({ user: 1 });
-OrderSchema.index({ orderStatus: 1 });
-OrderSchema.index({ createdAt: -1 });
-OrderSchema.index({ 'items.seller': 1 });
-OrderSchema.index({ paymentStatus: 1 });
+// Single-list / dashboard query paths
+OrderSchema.index({ user: 1, createdAt: -1 });                 // customer order list
+OrderSchema.index({ user: 1, 'items.product': 1, orderStatus: 1 }); // "did user buy this product" (review check)
+OrderSchema.index({ createdAt: -1 });                          // admin list sorted by date
+OrderSchema.index({ orderStatus: 1, createdAt: -1 });          // admin list filtered by status
+OrderSchema.index({ paymentStatus: 1, orderStatus: 1, createdAt: -1 }); // revenue / pending-payment aggregates
+OrderSchema.index({ 'items.seller': 1, createdAt: -1 });       // seller order list / recent orders
+OrderSchema.index({ 'items.seller': 1, orderStatus: 1 });      // seller status counts
+OrderSchema.index({ 'items.seller': 1, paymentStatus: 1, orderStatus: 1, createdAt: -1 }); // seller revenue/pending/monthly aggregates
 
 export default mongoose.model<IOrder>('Order', OrderSchema);

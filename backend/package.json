@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "ts-node src/seed.ts",
+    "seed:categories": "ts-node src/seedCategories.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -5,7 +5,6 @@ import { CreditCard, DollarSign, TrendingUp, Clock, Save } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,7 @@ import toast from "react-hot-toast";
 
 export default function SellerPayouts() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [earnings, setEarnings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [bankForm, setBankForm] = useState({
@@ -51,69 +50,58 @@ export default function SellerPayouts() {
 
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
+  const earningsCards = [
+    { label: "Total Earnings", value: formatPrice(earnings?.total || 0), icon: DollarSign },
+    { label: "This Month", value: formatPrice(earnings?.thisMonth || 0), icon: TrendingUp },
+    { label: "Pending", value: formatPrice(earnings?.pending || 0), icon: Clock },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Payouts & Earnings</h1>
-        <p className="text-muted-foreground text-sm">Track your earnings and manage bank details</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Payouts & Earnings</h1>
+        <p className="text-sm text-muted-foreground">Track your earnings and manage bank details</p>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <Card key={i}><CardContent className="p-6"><div className="animate-pulse space-y-2"><div className="h-4 bg-gray-200 rounded w-1/2" /><div className="h-8 bg-gray-200 rounded w-1/3" /></div></CardContent></Card>)}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <div key={i} className="vp-stat"><div className="animate-pulse space-y-2"><div className="h-4 bg-muted rounded w-1/2" /><div className="h-8 bg-muted rounded w-1/3" /></div></div>)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {earningsCards.map((s, i) => (
+            <div key={i} className="vp-stat">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-green-50 rounded-lg"><DollarSign className="h-5 w-5 text-green-600" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Earnings</p>
-                  <p className="text-xl font-bold">{formatPrice(earnings?.total || 0)}</p>
+                <div className="rounded-lg bg-muted p-2.5"><s.icon className="h-5 w-5 text-foreground" /></div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-base sm:text-xl font-bold text-foreground">{s.value}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-50 rounded-lg"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">This Month</p>
-                  <p className="text-xl font-bold">{formatPrice(earnings?.thisMonth || 0)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-yellow-50 rounded-lg"><Clock className="h-5 w-5 text-yellow-600" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                  <p className="text-xl font-bold">{formatPrice(earnings?.pending || 0)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
       )}
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Bank Details</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Account Holder</Label><Input value={bankForm.accountHolder} onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })} /></div>
-            <div><Label>Bank Name</Label><Input value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} /></div>
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="rounded-lg bg-muted p-1.5">
+            <CreditCard className="h-4 w-4 text-foreground" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Account Number</Label><Input value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} /></div>
-            <div><Label>IFSC Code</Label><Input value={bankForm.ifscCode} onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })} /></div>
+          <h3 className="text-sm font-semibold text-foreground">Bank Details</h3>
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><Label className="text-xs">Account Holder</Label><Input value={bankForm.accountHolder} onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })} className="mt-1 h-9" /></div>
+            <div><Label className="text-xs">Bank Name</Label><Input value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} className="mt-1 h-9" /></div>
           </div>
-          <Button onClick={handleSaveBank}><Save className="h-4 w-4 mr-2" /> Save Bank Details</Button>
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><Label className="text-xs">Account Number</Label><Input value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} className="mt-1 h-9" /></div>
+            <div><Label className="text-xs">IFSC Code</Label><Input value={bankForm.ifscCode} onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })} className="mt-1 h-9" /></div>
+          </div>
+          <Button onClick={handleSaveBank} className="rounded-lg"><Save className="h-4 w-4 mr-2" /> Save Bank Details</Button>
+        </div>
+      </div>
     </div>
   );
 }

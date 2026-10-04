@@ -33,5 +33,8 @@ ProductCompatibilitySchema.index({ vehicleType: 1 });
 ProductCompatibilitySchema.index({ brand: 1 });
 ProductCompatibilitySchema.index({ vehicleModel: 1 });
 ProductCompatibilitySchema.index({ variant: 1 });
+// Universal-part lookups used by the vehicle compatibility filter
+ProductCompatibilitySchema.index({ isUniversal: 1 });
+ProductCompatibilitySchema.index({ isUniversal: 1, vehicleType: 1 });
 
 export default mongoose.model<IProductCompatibility>('ProductCompatibility', ProductCompatibilitySchema);

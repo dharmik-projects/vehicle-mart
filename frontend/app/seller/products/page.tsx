@@ -1,13 +1,15 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { thumbUrl } from "@/lib/images";
 import { useRouter } from "next/navigation";
 import {
   Plus, Search, Edit, Trash2, Upload, X, Package,
   ChevronLeft, ChevronRight, Car, Bike, Truck as TruckIcon,
-  Zap, CircleDot, Globe,
+  Zap, CircleDot, Globe, Loader2,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { cached } from "@/lib/cache";
 import { formatPrice, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +47,7 @@ interface CompatibilityEntry {
 
 export default function SellerProducts() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,9 @@ export default function SellerProducts() {
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const seqRef = useRef(0); // stale-response guard for the product list
+  const [busyId, setBusyId] = useState<string | null>(null); // row whose action is in flight
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "", description: "", brand: "", category: "", price: "", mrp: "",
@@ -85,9 +90,16 @@ export default function SellerProducts() {
       return;
     }
     loadProducts();
+  }, [user, router, page, statusFilter, debouncedSearch]);
+
+  /* Reference data (categories, vehicle makes) loads once per mount through
+     the shared client cache — same key naming as the shop's /products page —
+     so paging and filtering never re-request it. */
+  useEffect(() => {
+    if (!user || (user.role !== "seller" && user.role !== "admin")) return;
     loadCategories();
     loadBrands();
-  }, [user, router, page, statusFilter, debouncedSearch]);
+  }, [user]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -99,28 +111,48 @@ export default function SellerProducts() {
   }, [search]);
 
   const loadProducts = async () => {
+    const seq = ++seqRef.current;
+    setLoading(true);
     try {
-      setLoading(true);
       const params: any = { page: String(page), limit: "12" };
       if (statusFilter !== "all") params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getSellerProducts(params);
+      if (seq !== seqRef.current) return; // stale response — ignore out-of-order replies
       setProducts(data.products || []);
       setPagination(data.pagination);
     } catch (err) { console.error(err); }
-    setLoading(false);
+    if (seq === seqRef.current) setLoading(false);
   };
 
   const loadCategories = async () => {
     try {
-      const data = await api.getCategoriesFlat();
-      setCategories(data.categories || []);
+      const data = await cached("categoriesFlat", () => api.getCategoriesFlat());
+      const list: any[] = data.categories || [];
+      // Flat endpoint → ordered main-then-its-children so the dropdown is a
+      // browsable tree (sortOrders repeat across parents, so raw sort would jumble).
+      const byOrder = (a: any, b: any) =>
+        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || String(a.name).localeCompare(String(b.name));
+      const mains = list.filter((c) => !c.parent).sort(byOrder);
+      const ordered: any[] = [];
+      for (const m of mains) {
+        ordered.push(m);
+        ordered.push(
+          ...list
+            .filter((c) => c.parent && String(c.parent._id ?? c.parent) === String(m._id))
+            .sort(byOrder)
+        );
+      }
+      // Orphans (parent not in the active list) go last instead of vanishing
+      const included = new Set(ordered.map((c) => String(c._id)));
+      ordered.push(...list.filter((c) => !included.has(String(c._id))));
+      setCategories(ordered);
     } catch (err) { console.error(err); }
   };
 
   const loadBrands = async () => {
     try {
-      const data = await api.getBrands();
+      const data = await cached("vehicleMakes", () => api.getBrands());
       setBrands(data.brands || []);
     } catch (err) { console.error(err); }
   };
@@ -299,13 +331,6 @@ export default function SellerProducts() {
         toast.success("Product created! Awaiting approval.");
       }
 
-      if (imageFiles.length > 0 && productId) {
-        const fd = new FormData();
-        imageFiles.forEach((f) => fd.append("images", f));
-        await api.uploadSellerProductImages(productId, fd);
-        toast.success("Images uploaded");
-      }
-
       const compatPayload: any = { compatibilityType: compatType };
       if (compatType === "vehicleType") {
         compatPayload.vehicleType = compatVehicleType;
@@ -320,7 +345,21 @@ export default function SellerProducts() {
           notes: e.notes || undefined,
         }));
       }
-      await api.updateSellerProductCompatibility(productId, compatPayload);
+
+      // Image upload and compatibility are independent of each other (both only
+      // need the product id) — run them in parallel instead of sequentially.
+      const compatPromise = api.updateSellerProductCompatibility(productId, compatPayload);
+      const uploadPromise: Promise<any> =
+        imageFiles.length > 0 && productId
+          ? (() => {
+              const fd = new FormData();
+              imageFiles.forEach((f) => fd.append("images", f));
+              return api.uploadSellerProductImages(productId, fd);
+            })()
+          : Promise.resolve(null);
+
+      const [uploaded] = await Promise.all([uploadPromise, compatPromise]);
+      if (uploaded) toast.success("Images uploaded");
 
       setShowForm(false);
       resetForm();
@@ -333,19 +372,23 @@ export default function SellerProducts() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Deactivate this product?")) return;
+    setBusyId(id); setBusyAction("delete");
     try {
       await api.deleteSellerProduct(id);
       toast.success("Product deactivated");
       loadProducts();
     } catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   const handleToggle = async (id: string) => {
+    setBusyId(id); setBusyAction("toggle");
     try {
       await api.toggleSellerProduct(id);
       toast.success("Product status toggled");
       loadProducts();
     } catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,10 +432,10 @@ export default function SellerProducts() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Products</h1>
+          <h1 className="text-2xl font-bold text-foreground">Products</h1>
           <p className="text-muted-foreground text-sm">Manage your product catalog</p>
         </div>
         <Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4 mr-2" /> Add Product</Button>
@@ -417,7 +460,7 @@ export default function SellerProducts() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-3"><div className="h-32 bg-gray-200 rounded" /><div className="h-4 bg-gray-200 rounded w-3/4" /><div className="h-4 bg-gray-200 rounded w-1/2" /></div></CardContent></Card>
+            <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-3"><div className="h-32 bg-muted rounded" /><div className="h-4 bg-muted rounded w-3/4" /><div className="h-4 bg-muted rounded w-1/2" /></div></CardContent></Card>
           ))}
         </div>
       ) : products.length > 0 ? (
@@ -425,21 +468,21 @@ export default function SellerProducts() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {products.map((p) => (
               <Card key={p._id} className="overflow-hidden">
-                <div className="relative h-40 bg-gray-50">
+                <div className="relative h-40 bg-muted">
                   {p.images && p.images.length > 0 ? (
-                    <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
+                    <img src={thumbUrl(p.images[0].url, 160)} alt={p.name} loading="lazy" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                       <Package className="h-12 w-12" />
                     </div>
                   )}
                   <div className="absolute top-2 left-2 flex gap-1">
-                    <Badge variant={p.isApproved ? "default" : "secondary"} className="text-xs">
+                    <Badge variant={p.isApproved ? "success" : "warning"} className="text-xs">
                       {p.isApproved ? "Approved" : "Pending"}
                     </Badge>
                   </div>
                   <div className="absolute top-2 right-2">
-                    <Badge variant={p.isActive ? "outline" : "destructive"} className="text-xs">
+                    <Badge variant={p.isActive ? "outline" : "secondary"} className="text-xs">
                       {p.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
@@ -450,9 +493,9 @@ export default function SellerProducts() {
                   {p._compat && p._compat.length > 0 && (
                     <div className="flex items-center gap-1 mb-2">
                       {p._compat.some((c: any) => c.isUniversal) ? (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0"><Globe className="h-2.5 w-2.5 mr-0.5" /> Universal</Badge>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0"><Globe className="h-2.5 w-2.5 mr-0.5" /> Universal</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0"><Car className="h-2.5 w-2.5 mr-0.5" /> {getCompatLabel(p)}</Badge>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0"><Car className="h-2.5 w-2.5 mr-0.5" /> {getCompatLabel(p)}</Badge>
                       )}
                     </div>
                   )}
@@ -469,7 +512,7 @@ export default function SellerProducts() {
                     <div className="flex gap-1 mb-3">
                       {p.images.slice(0, 4).map((img: any, i: number) => (
                         <div key={i} className="relative w-10 h-10 rounded border overflow-hidden group">
-                          <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          <img src={thumbUrl(img.url, 160)} alt="" loading="lazy" className="w-full h-full object-cover" />
                           <button
                             onClick={() => handleDeleteImage(p._id, i)}
                             className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
@@ -489,11 +532,19 @@ export default function SellerProducts() {
                     <Button size="sm" variant="outline" className="flex-1" onClick={() => handleOpenForm(p)}>
                       <Edit className="h-3 w-3 mr-1" /> Edit
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleToggle(p._id)}>
-                      {p.isActive ? "Off" : "On"}
+                    <Button size="sm" variant="outline" onClick={() => handleToggle(p._id)} disabled={busyId === p._id}>
+                      {busyId === p._id && busyAction === "toggle" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        p.isActive ? "Off" : "On"
+                      )}
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(p._id)}>
-                      <Trash2 className="h-3 w-3" />
+                    <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(p._id)} disabled={busyId === p._id}>
+                      {busyId === p._id && busyAction === "delete" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -514,9 +565,11 @@ export default function SellerProducts() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>No products found. Add your first product!</p>
+        <Card><CardContent className="p-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Package className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-foreground">No products found. Add your first product!</p>
         </CardContent></Card>
       )}
 
@@ -538,9 +591,9 @@ export default function SellerProducts() {
                   </div>
                 ))}
                 {imageFiles.length < 8 && (
-                  <label className="w-20 h-20 rounded border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50">
+                  <label className="w-20 h-20 rounded border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted">
                     <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Upload</span>
+                    <span className="text-xs text-muted-foreground">Upload</span>
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
                   </label>
                 )}
@@ -551,36 +604,40 @@ export default function SellerProducts() {
             <div><Label>Product Name *</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div><Label>Description *</Label><Textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Brand *</Label><Input required value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
               <div>
                 <Label>Category *</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    {categories.map((c: any) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
+                    {categories.map((c: any) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.parent ? `${c.parent.name} › ${c.name}` : c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Selling Price (₹) *</Label><Input type="number" required min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
               <div><Label>MRP (₹) *</Label><Input type="number" required min="0" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} /></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Part Number</Label><Input value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} /></div>
               <div><Label>OEM Part Number</Label><Input value={form.oemPartNumber} onChange={(e) => setForm({ ...form, oemPartNumber: e.target.value })} /></div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><Label>Stock *</Label><Input type="number" required min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
               <div><Label>Low Stock Alert</Label><Input type="number" min="0" value={form.lowStockThreshold} onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })} /></div>
               <div><Label>Weight (kg)</Label><Input type="number" min="0" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} /></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Warranty</Label><Input value={form.warranty} placeholder="e.g. 6 months" onChange={(e) => setForm({ ...form, warranty: e.target.value })} /></div>
               <div><Label>Origin Country</Label><Input value={form.originCountry} placeholder="e.g. India" onChange={(e) => setForm({ ...form, originCountry: e.target.value })} /></div>
             </div>
@@ -591,24 +648,24 @@ export default function SellerProducts() {
               <Label className="text-base font-semibold">Vehicle Compatibility</Label>
               <p className="text-xs text-muted-foreground mb-3">Define which vehicles this product fits. Leave as Universal if it fits all.</p>
 
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                 <button type="button" onClick={() => setCompatType("universal")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "universal" ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
-                  <Globe className="h-5 w-5 mb-1 text-primary" />
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "universal" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  <Globe className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Universal</p>
-                  <p className="text-[10px] text-muted-foreground">Fits all vehicles</p>
+                  <p className="text-xs text-muted-foreground">Fits all vehicles</p>
                 </button>
                 <button type="button" onClick={() => setCompatType("vehicleType")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "vehicleType" ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
-                  <Car className="h-5 w-5 mb-1 text-primary" />
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "vehicleType" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  <Car className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Vehicle Type</p>
-                  <p className="text-[10px] text-muted-foreground">All cars, bikes, etc.</p>
+                  <p className="text-xs text-muted-foreground">All cars, bikes, etc.</p>
                 </button>
                 <button type="button" onClick={() => setCompatType("specific")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "specific" ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"}`}>
-                  <CircleDot className="h-5 w-5 mb-1 text-primary" />
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "specific" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  <CircleDot className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Specific</p>
-                  <p className="text-[10px] text-muted-foreground">Exact model fitment</p>
+                  <p className="text-xs text-muted-foreground">Exact model fitment</p>
                 </button>
               </div>
 
@@ -629,18 +686,18 @@ export default function SellerProducts() {
               {compatType === "specific" && (
                 <div className="space-y-3">
                   {compatEntries.map((entry, idx) => (
-                    <div key={idx} className="p-3 bg-gray-50 rounded-lg border space-y-3">
+                    <div key={idx} className="p-3 bg-muted rounded-lg border border-border space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-medium text-muted-foreground">Vehicle {idx + 1}</p>
-                        <button type="button" onClick={() => removeCompatEntry(idx)} className="text-red-500 hover:text-red-700">
+                        <button type="button" onClick={() => removeCompatEntry(idx)} className="text-destructive hover:text-destructive/80">
                           <X className="h-4 w-4" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Vehicle Type</Label>
                           <Select value={entry.vehicleType} onValueChange={(v) => updateCompatEntry(idx, "vehicleType", v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {VEHICLE_TYPES.map((vt) => (
                                 <SelectItem key={vt.value} value={vt.value}>{vt.label}</SelectItem>
@@ -651,7 +708,7 @@ export default function SellerProducts() {
                         <div>
                           <Label className="text-xs">Brand</Label>
                           <Select value={entry.brand || "__any"} onValueChange={(v) => handleBrandChange(idx, v === '__any' ? '' : v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any brand" /></SelectTrigger>
+                            <SelectTrigger className="text-xs"><SelectValue placeholder="Any brand" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__any">Any Brand</SelectItem>
                               {brands.filter((b: any) => !entry.vehicleType || b.vehicleType?.includes(entry.vehicleType)).map((b: any) => (
@@ -662,11 +719,11 @@ export default function SellerProducts() {
                         </div>
                       </div>
                       {entry.brand && (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div>
                             <Label className="text-xs">Model</Label>
                             <Select value={entry.vehicleModel || "__any"} onValueChange={(v) => handleModelChange(idx, v === '__any' ? '' : v)}>
-                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={loadingModels ? "Loading..." : "Any model"} /></SelectTrigger>
+                              <SelectTrigger className="text-xs"><SelectValue placeholder={loadingModels ? "Loading..." : "Any model"} /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__any">Any Model</SelectItem>
                                 {models.map((m: any) => (
@@ -679,7 +736,7 @@ export default function SellerProducts() {
                             <div>
                               <Label className="text-xs">Variant</Label>
                               <Select value={entry.variant || "__any"} onValueChange={(v) => handleVariantChange(idx, v === '__any' ? '' : v)}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={loadingVariants ? "Loading..." : "Any variant"} /></SelectTrigger>
+                                <SelectTrigger className="text-xs"><SelectValue placeholder={loadingVariants ? "Loading..." : "Any variant"} /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="__any">Any Variant</SelectItem>
                                   {variants.map((v: any) => (
@@ -691,19 +748,19 @@ export default function SellerProducts() {
                           )}
                         </div>
                       )}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Year From</Label>
-                          <Input type="number" className="h-8 text-xs" placeholder="e.g. 2015" value={entry.yearFrom} onChange={(e) => updateCompatEntry(idx, "yearFrom", e.target.value)} />
+                          <Input type="number" className="text-xs" placeholder="e.g. 2015" value={entry.yearFrom} onChange={(e) => updateCompatEntry(idx, "yearFrom", e.target.value)} />
                         </div>
                         <div>
                           <Label className="text-xs">Year To</Label>
-                          <Input type="number" className="h-8 text-xs" placeholder="e.g. 2023" value={entry.yearTo} onChange={(e) => updateCompatEntry(idx, "yearTo", e.target.value)} />
+                          <Input type="number" className="text-xs" placeholder="e.g. 2023" value={entry.yearTo} onChange={(e) => updateCompatEntry(idx, "yearTo", e.target.value)} />
                         </div>
                       </div>
                       <div>
                         <Label className="text-xs">Notes</Label>
-                        <Input className="h-8 text-xs" placeholder="e.g. petrol variants only" value={entry.notes} onChange={(e) => updateCompatEntry(idx, "notes", e.target.value)} />
+                        <Input className="text-xs" placeholder="e.g. petrol variants only" value={entry.notes} onChange={(e) => updateCompatEntry(idx, "notes", e.target.value)} />
                       </div>
                     </div>
                   ))}

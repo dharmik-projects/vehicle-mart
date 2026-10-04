@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, FolderTree } from "lucide-react";
 import { api } from "@/lib/api";
-import { getStatusColor } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
+
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case "active":
+    case "delivered":
+    case "paid":
+    case "confirmed":
+      return "success";
+    case "pending":
+    case "processing":
+    case "shipped":
+    case "refunded":
+      return "warning";
+    case "cancelled":
+    case "failed":
+    case "returned":
+      return "destructive";
+    case "inactive":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -77,18 +99,17 @@ export default function AdminCategoriesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><FolderTree className="h-6 w-6" /> Categories</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><FolderTree className="h-6 w-6" /> Categories</h1>
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Category</Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      <div className="bg-card rounded-lg border border-border">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Icon</th>
                   <th className="text-left py-3 px-4 font-medium">Name</th>
                   <th className="text-left py-3 px-4 font-medium">Parent</th>
@@ -99,12 +120,12 @@ export default function AdminCategoriesPage() {
               </thead>
               <tbody>
                 {categories.map((cat) => (
-                  <tr key={cat._id} className="border-b last:border-0 hover:bg-gray-50">
+                  <tr key={cat._id} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="py-3 px-4 text-lg">{cat.icon || "—"}</td>
                     <td className="py-3 px-4 font-medium">{cat.name}</td>
                     <td className="py-3 px-4 text-muted-foreground">{cat.parent?.name || "—"}</td>
                     <td className="py-3 px-4">
-                      <Badge className={cat.isActive ? getStatusColor("active") : getStatusColor("inactive")}>
+                      <Badge variant={statusBadgeVariant(cat.isActive ? "active" : "inactive")}>
                         {cat.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </td>
@@ -116,13 +137,12 @@ export default function AdminCategoriesPage() {
                   </tr>
                 ))}
                 {categories.length === 0 && (
-                  <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No categories found</td></tr>
+                  <tr><td colSpan={6} className="py-12 text-center text-muted-foreground bg-muted">No categories found</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -138,7 +158,7 @@ export default function AdminCategoriesPage() {
               <Label>Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional" rows={2} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Icon (emoji)</Label>
                 <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} placeholder="🔧" />

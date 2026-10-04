@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
+
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case "active":
+    case "delivered":
+    case "paid":
+    case "confirmed":
+      return "success";
+    case "pending":
+    case "processing":
+    case "shipped":
+    case "refunded":
+      return "warning";
+    case "cancelled":
+    case "failed":
+    case "returned":
+      return "destructive";
+    case "inactive":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -54,24 +76,14 @@ export default function AdminCouponsPage() {
   const handleSave = async () => {
     try {
       const payload: any = {
-        code: form.code,
-        description: form.description,
-        discountType: form.discountType,
-        discountValue: Number(form.discountValue),
-        minOrderAmount: Number(form.minOrderAmount) || 0,
+        code: form.code, description: form.description, discountType: form.discountType,
+        discountValue: Number(form.discountValue), minOrderAmount: Number(form.minOrderAmount) || 0,
         maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : undefined,
-        usageLimit: form.usageLimit ? Number(form.usageLimit) : 0,
-        expiresAt: form.expiresAt,
+        usageLimit: form.usageLimit ? Number(form.usageLimit) : 0, expiresAt: form.expiresAt,
       };
-      if (editing) {
-        await api.updateAdminCoupon(editing._id, payload);
-        toast.success("Coupon updated");
-      } else {
-        await api.createAdminCoupon(payload);
-        toast.success("Coupon created");
-      }
-      setDialogOpen(false);
-      loadCoupons();
+      if (editing) { await api.updateAdminCoupon(editing._id, payload); toast.success("Coupon updated"); }
+      else { await api.createAdminCoupon(payload); toast.success("Coupon created"); }
+      setDialogOpen(false); loadCoupons();
     } catch (err: any) { toast.error(err.message); }
   };
 
@@ -82,91 +94,90 @@ export default function AdminCouponsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Tag className="h-6 w-6" /> Coupons & Discounts</h1>
-        <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Coupon</Button>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Coupons & Discounts</h1>
+          <p className="text-sm text-muted-foreground">{coupons.length} total coupons</p>
+        </div>
+        <Button onClick={openCreate} className="rounded-lg"><Plus className="h-4 w-4 mr-1" /> Add Coupon</Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-3 px-4 font-medium">Code</th>
-                  <th className="text-left py-3 px-4 font-medium">Discount</th>
-                  <th className="text-left py-3 px-4 font-medium">Min Order</th>
-                  <th className="text-left py-3 px-4 font-medium">Max Discount</th>
-                  <th className="text-left py-3 px-4 font-medium">Usage</th>
-                  <th className="text-left py-3 px-4 font-medium">Expires</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-right py-3 px-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {coupons.map((c) => {
-                  const expired = new Date(c.expiresAt) < new Date();
-                  return (
-                    <tr key={c._id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-mono font-bold">{c.code}</td>
-                      <td className="py-3 px-4">
-                        {c.discountType === "percentage" ? `${c.discountValue}%` : formatPrice(c.discountValue)}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">{c.minOrderAmount ? formatPrice(c.minOrderAmount) : "—"}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{c.maxDiscount ? formatPrice(c.maxDiscount) : "—"}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{c.usedCount}/{c.usageLimit || "∞"}</td>
-                      <td className="py-3 px-4 text-xs text-muted-foreground">{formatDate(c.expiresAt)}</td>
-                      <td className="py-3 px-4">
-                        <Badge className={!c.isActive ? getStatusColor("inactive") : expired ? getStatusColor("cancelled") : getStatusColor("active")}>
-                          {!c.isActive ? "Inactive" : expired ? "Expired" : "Active"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-3 w-3" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(c._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {coupons.length === 0 && (
-                  <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">No coupons found</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="text-left py-3 px-4 font-medium">Code</th>
+                <th className="text-left py-3 px-4 font-medium">Discount</th>
+                <th className="text-left py-3 px-4 font-medium">Min Order</th>
+                <th className="text-left py-3 px-4 font-medium">Max Discount</th>
+                <th className="text-left py-3 px-4 font-medium">Usage</th>
+                <th className="text-left py-3 px-4 font-medium">Expires</th>
+                <th className="text-left py-3 px-4 font-medium">Status</th>
+                <th className="text-right py-3 px-4 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coupons.map((c) => {
+                const expired = new Date(c.expiresAt) < new Date();
+                return (
+                  <tr key={c._id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                    <td className="py-3 px-4 font-mono font-semibold text-foreground">{c.code}</td>
+                    <td className="py-3 px-4 text-foreground">{c.discountType === "percentage" ? `${c.discountValue}%` : formatPrice(c.discountValue)}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{c.minOrderAmount ? formatPrice(c.minOrderAmount) : "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{c.maxDiscount ? formatPrice(c.maxDiscount) : "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{c.usedCount}/{c.usageLimit || "∞"}</td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground">{formatDate(c.expiresAt)}</td>
+                    <td className="py-3 px-4">
+                      <Badge variant={statusBadgeVariant(!c.isActive ? "inactive" : expired ? "cancelled" : "active")}>
+                        {!c.isActive ? "Inactive" : expired ? "Expired" : "Active"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(c._id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {coupons.length === 0 && (
+                <tr><td colSpan={8} className="py-12 text-center text-muted-foreground bg-muted">No coupons found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{editing ? "Edit" : "Create"} Coupon</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <div><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. SAVE20" /></div>
-            <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Discount Type</Label>
+            <div><Label className="text-xs">Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. SAVE20" className="mt-1 h-9" /></div>
+            <div><Label className="text-xs">Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="mt-1 border-border" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><Label className="text-xs">Discount Type</Label>
                 <Select value={form.discountType} onValueChange={(v) => setForm({ ...form, discountType: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
                     <SelectItem value="fixed">Fixed (₹)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Discount Value</Label><Input type="number" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: e.target.value })} /></div>
+              <div><Label className="text-xs">Discount Value</Label><Input type="number" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: e.target.value })} className="mt-1 h-9" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Min Order (₹)</Label><Input type="number" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} /></div>
-              <div><Label>Max Discount (₹)</Label><Input type="number" value={form.maxDiscount} onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><Label className="text-xs">Min Order (₹)</Label><Input type="number" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">Max Discount (₹)</Label><Input type="number" value={form.maxDiscount} onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })} className="mt-1 h-9" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Usage Limit</Label><Input type="number" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value })} placeholder="0 = unlimited" /></div>
-              <div><Label>Expires At</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><Label className="text-xs">Usage Limit</Label><Input type="number" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value })} placeholder="0 = unlimited" className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">Expires At</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="mt-1 h-9" /></div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={!form.code.trim() || !form.discountValue}>{editing ? "Update" : "Create"}</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-lg">Cancel</Button>
+              <Button onClick={handleSave} disabled={!form.code.trim() || !form.discountValue} className="rounded-lg">{editing ? "Update" : "Create"}</Button>
             </div>
           </div>
         </DialogContent>

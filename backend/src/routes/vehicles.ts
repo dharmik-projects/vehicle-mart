@@ -20,13 +20,13 @@ router.get('/brands', asyncHandler(async (req: Request, res: Response) => {
   const filter: any = { isActive: true };
   if (vehicleType) filter.vehicleType = vehicleType;
 
-  const brands = await VehicleBrand.find(filter).sort({ name: 1 });
+  const brands = await VehicleBrand.find(filter).sort({ name: 1 }).lean();
   res.json({ brands });
 }));
 
 // Get brand by slug
 router.get('/brands/:slug', asyncHandler(async (req: Request, res: Response) => {
-  const brand = await VehicleBrand.findOne({ slug: req.params.slug, isActive: true });
+  const brand = await VehicleBrand.findOne({ slug: req.params.slug, isActive: true }).lean();
   if (!brand) throw new AppError('Brand not found', 404);
   res.json({ brand });
 }));
@@ -87,14 +87,16 @@ router.get('/models', asyncHandler(async (req: Request, res: Response) => {
 
   const models = await VehicleModel.find(filter)
     .populate('brand', 'name slug logo')
-    .sort({ name: 1 });
+    .sort({ name: 1 })
+    .lean();
   res.json({ models });
 }));
 
 // Get model by slug
 router.get('/models/:slug', asyncHandler(async (req: Request, res: Response) => {
   const model = await VehicleModel.findOne({ slug: req.params.slug, isActive: true })
-    .populate('brand', 'name slug logo');
+    .populate('brand', 'name slug logo')
+    .lean();
   if (!model) throw new AppError('Model not found', 404);
   res.json({ model });
 }));
@@ -155,7 +157,8 @@ router.get('/variants', asyncHandler(async (req: Request, res: Response) => {
 
   const variants = await VehicleVariant.find(filter)
     .populate({ path: 'vehicleModel', select: 'name slug brand', populate: { path: 'brand', select: 'name slug' } })
-    .sort({ yearFrom: -1 });
+    .sort({ yearFrom: -1 })
+    .lean();
   res.json({ variants });
 }));
 
@@ -213,15 +216,22 @@ router.get('/select', asyncHandler(async (req: Request, res: Response) => {
 
   const brandFilter: any = { isActive: true };
   if (vehicleType) brandFilter.vehicleType = vehicleType;
-  result.brands = await VehicleBrand.find(brandFilter).sort({ name: 1 });
 
-  if (brandId) {
-    result.models = await VehicleModel.find({ brand: brandId, isActive: true }).sort({ name: 1 });
-  }
+  // The three steps only depend on query params — run them in parallel
+  const [brands, models, variants] = await Promise.all([
+    VehicleBrand.find(brandFilter).sort({ name: 1 }).lean(),
+    brandId
+      ? VehicleModel.find({ brand: brandId, isActive: true }).sort({ name: 1 }).lean()
+      : Promise.resolve(null),
+    modelId
+      // VehicleVariant's parent-model field is `vehicleModel` (not `model`)
+      ? VehicleVariant.find({ vehicleModel: modelId, isActive: true }).sort({ yearFrom: -1 }).lean()
+      : Promise.resolve(null),
+  ]);
 
-  if (modelId) {
-    result.variants = await VehicleVariant.find({ model: modelId, isActive: true }).sort({ yearFrom: -1 });
-  }
+  result.brands = brands;
+  if (brandId) result.models = models;
+  if (modelId) result.variants = variants;
 
   res.json(result);
 }));

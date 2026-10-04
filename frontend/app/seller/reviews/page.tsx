@@ -6,13 +6,12 @@ import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import toast from "react-hot-toast";
 
 export default function SellerReviews() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<any>(null);
@@ -44,46 +43,44 @@ export default function SellerReviews() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Reviews</h1>
-        <p className="text-muted-foreground text-sm">Customer reviews for your products</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Reviews</h1>
+        <p className="text-sm text-muted-foreground">Customer reviews for your products</p>
       </div>
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-2"><div className="h-4 bg-gray-200 rounded w-1/3" /><div className="h-3 bg-gray-200 rounded w-2/3" /></div></CardContent></Card>)}
+          {[1, 2, 3].map((i) => <div key={i} className="rounded-lg border border-border bg-card p-4"><div className="animate-pulse space-y-2"><div className="h-4 bg-muted rounded w-1/3" /><div className="h-3 bg-muted rounded w-2/3" /></div></div>)}
         </div>
       ) : reviews.length > 0 ? (
         <>
           <div className="space-y-3">
             {reviews.map((r) => (
-              <Card key={r._id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{r.user?.name || "Anonymous"}</p>
-                        <Badge variant="outline" className="text-xs">{r.isVerifiedPurchase ? "Verified" : "Unverified"}</Badge>
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className={`h-3.5 w-3.5 ${s <= r.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
-                        ))}
-                        <span className="text-xs text-muted-foreground ml-1">{formatDate(r.createdAt)}</span>
-                      </div>
-                      {r.title && <p className="text-sm font-medium mt-2">{r.title}</p>}
-                      <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
+              <div key={r._id} className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground">{r.user?.name || "Anonymous"}</p>
+                      <Badge variant="outline" className="text-xs">{r.isVerifiedPurchase ? "Verified" : "Unverified"}</Badge>
                     </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star key={s} className={`h-3.5 w-3.5 ${s <= r.rating ? "text-foreground fill-foreground" : "text-border"}`} />
+                      ))}
+                      <span className="text-xs text-muted-foreground ml-1">{formatDate(r.createdAt)}</span>
+                    </div>
+                    {r.title && <p className="text-sm font-medium mt-2 text-foreground">{r.title}</p>}
+                    <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
                   </div>
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t">
-                    <p className="text-xs text-muted-foreground">For: {r.product?.name || "Product"}</p>
-                    <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleHelpful(r._id)}>
-                      <ThumbsUp className="h-3 w-3 mr-1" /> Helpful ({r.helpful || 0})
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground">For: {r.product?.name || "Product"}</p>
+                  <Button size="sm" variant="ghost" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => handleHelpful(r._id)}>
+                    <ThumbsUp className="h-3 w-3 mr-1" /> Helpful ({r.helpful || 0})
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
@@ -95,10 +92,13 @@ export default function SellerReviews() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          <Star className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>No reviews yet for your products.</p>
-        </CardContent></Card>
+        <div className="py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Star className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">No reviews yet</h2>
+          <p className="text-sm text-muted-foreground">Reviews for your products will appear here</p>
+        </div>
       )}
     </div>
   );

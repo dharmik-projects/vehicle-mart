@@ -26,5 +26,7 @@ const NotificationSchema = new Schema<INotification>(
 NotificationSchema.index({ user: 1 });
 NotificationSchema.index({ isRead: 1 });
 NotificationSchema.index({ createdAt: -1 });
+// Notification inbox: user's unread-first feed
+NotificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
 
 export default mongoose.model<INotification>('Notification', NotificationSchema);

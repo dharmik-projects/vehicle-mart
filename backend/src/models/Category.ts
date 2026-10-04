@@ -30,5 +30,7 @@ const CategorySchema = new Schema<ICategory>(
 CategorySchema.index({ slug: 1 });
 CategorySchema.index({ parent: 1 });
 CategorySchema.index({ sortOrder: 1 });
+// Homepage/list query: { isActive: true } sorted by { sortOrder, name }
+CategorySchema.index({ isActive: 1, sortOrder: 1, name: 1 });
 
 export default mongoose.model<ICategory>('Category', CategorySchema);

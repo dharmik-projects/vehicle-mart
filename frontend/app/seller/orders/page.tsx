@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Search, Eye, ChevronLeft, ChevronRight, Truck } from "lucide-react";
+import { ShoppingCart, Search, Eye, ChevronLeft, ChevronRight, Truck, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +13,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
+const statusVariant = (status?: string) => {
+  switch (status) {
+    case "delivered":
+    case "paid":
+    case "active":
+    case "approved":
+      return "success" as const;
+    case "pending":
+    case "returned":
+    case "refunded":
+      return "warning" as const;
+    case "cancelled":
+    case "failed":
+    case "rejected":
+      return "destructive" as const;
+    case "confirmed":
+    case "processing":
+    case "shipped":
+    case "inactive":
+      return "secondary" as const;
+    default:
+      return "outline" as const;
+  }
+};
+
 export default function SellerOrders() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -26,6 +51,8 @@ export default function SellerOrders() {
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null); // order whose status update is in flight
+  const [busyAction, setBusyAction] = useState<string | null>(null); // the status being applied
 
   useEffect(() => {
     if (!user || (user.role !== "seller" && user.role !== "admin")) {
@@ -60,12 +87,15 @@ export default function SellerOrders() {
   };
 
   const handleStatusUpdate = async (orderId: string, status: string) => {
+    setBusyId(orderId); setBusyAction(status); // immediate feedback on this order only
     try {
       await api.updateSellerOrderStatus(orderId, { orderStatus: status });
       toast.success(`Order marked as ${status}`);
       loadOrders();
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setBusyId(null); setBusyAction(null);
     }
   };
 
@@ -89,9 +119,9 @@ export default function SellerOrders() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Orders</h1>
+        <h1 className="text-2xl font-bold text-foreground">Orders</h1>
         <p className="text-muted-foreground text-sm">Manage and fulfill customer orders</p>
       </div>
 
@@ -101,7 +131,7 @@ export default function SellerOrders() {
           <Input placeholder="Search by order ID..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -117,7 +147,7 @@ export default function SellerOrders() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-2"><div className="h-4 bg-gray-200 rounded w-1/3" /><div className="h-3 bg-gray-200 rounded w-1/2" /></div></CardContent></Card>
+            <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-2"><div className="h-4 bg-muted rounded w-1/3" /><div className="h-3 bg-muted rounded w-1/2" /></div></CardContent></Card>
           ))}
         </div>
       ) : orders.length > 0 ? (
@@ -129,8 +159,8 @@ export default function SellerOrders() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">#{order._id.slice(-8).toUpperCase()}</p>
-                        <Badge className={getStatusColor(order.orderStatus)}>{order.orderStatus}</Badge>
+                        <p className="font-semibold text-sm text-foreground">#{order._id.slice(-8).toUpperCase()}</p>
+                        <Badge variant={statusVariant(order.orderStatus)}>{order.orderStatus}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {order.user?.name || "Customer"} • {order.user?.email || ""} • {formatDate(order.createdAt)}
@@ -141,7 +171,7 @@ export default function SellerOrders() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-bold">{formatPrice(order.total)}</p>
+                        <p className="font-bold text-foreground">{formatPrice(order.total)}</p>
                         <Badge variant="outline" className="text-xs mt-1">{order.paymentStatus}</Badge>
                       </div>
                       <div className="flex gap-1">
@@ -151,10 +181,14 @@ export default function SellerOrders() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                  <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
                     {getNextStatuses(order.orderStatus).map((s) => (
-                      <Button key={s} size="sm" variant="outline" onClick={() => handleStatusUpdate(order._id, s)}>
-                        {s === "shipped" && <Truck className="h-3 w-3 mr-1" />}
+                      <Button key={s} size="sm" variant="outline" onClick={() => handleStatusUpdate(order._id, s)} disabled={busyId === order._id}>
+                        {busyId === order._id && busyAction === s ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : s === "shipped" ? (
+                          <Truck className="h-3 w-3 mr-1" />
+                        ) : null}
                         Mark as {s}
                       </Button>
                     ))}
@@ -177,9 +211,11 @@ export default function SellerOrders() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          <ShoppingCart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>No orders found.</p>
+        <Card><CardContent className="p-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-foreground">No orders found.</p>
         </CardContent></Card>
       )}
 
@@ -190,18 +226,18 @@ export default function SellerOrders() {
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Status:</span> <Badge className={getStatusColor(selectedOrder.orderStatus)}>{selectedOrder.orderStatus}</Badge></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusVariant(selectedOrder.orderStatus)}>{selectedOrder.orderStatus}</Badge></div>
                 <div><span className="text-muted-foreground">Payment:</span> <Badge variant="outline">{selectedOrder.paymentStatus}</Badge></div>
                 <div><span className="text-muted-foreground">Date:</span> {formatDate(selectedOrder.createdAt)}</div>
                 <div><span className="text-muted-foreground">Total:</span> <span className="font-bold">{formatPrice(selectedOrder.total)}</span></div>
               </div>
               <div className="text-sm">
-                <p className="font-medium mb-1">Customer</p>
+                <p className="font-medium mb-1 text-foreground">Customer</p>
                 <p className="text-muted-foreground">{selectedOrder.user?.name} • {selectedOrder.user?.email}</p>
               </div>
               <div className="text-sm">
-                <p className="font-medium mb-1">Shipping Address</p>
+                <p className="font-medium mb-1 text-foreground">Shipping Address</p>
                 <p className="text-muted-foreground">
                   {selectedOrder.shippingAddress?.fullName}<br />
                   {selectedOrder.shippingAddress?.addressLine1}<br />
@@ -209,17 +245,17 @@ export default function SellerOrders() {
                 </p>
               </div>
               <div className="text-sm">
-                <p className="font-medium mb-1">Items</p>
+                <p className="font-medium mb-1 text-foreground">Items</p>
                     {selectedOrder.items?.filter((item: any) => item.seller === (user as any)?.id || item.seller?._id === (user as any)?.id).map((item: any, i: number) => (
-                  <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0">
-                    <div className="w-10 h-10 bg-gray-50 rounded overflow-hidden shrink-0">
-                      {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">📦</div>}
+                  <div key={i} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+                    <div className="w-10 h-10 bg-muted rounded overflow-hidden shrink-0">
+                      {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">📦</div>}
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{item.name}</p>
+                      <p className="text-sm font-medium text-foreground">{item.name}</p>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatPrice(item.price)}</p>
                     </div>
-                    <p className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</p>
+                    <p className="text-sm font-semibold text-foreground">{formatPrice(item.price * item.quantity)}</p>
                   </div>
                 ))}
               </div>

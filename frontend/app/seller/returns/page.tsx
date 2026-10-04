@@ -1,25 +1,49 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Search, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { RotateCcw, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
+const statusVariant = (status?: string) => {
+  switch (status) {
+    case "delivered":
+    case "paid":
+    case "active":
+    case "approved":
+      return "success" as const;
+    case "pending":
+    case "returned":
+    case "refunded":
+      return "warning" as const;
+    case "cancelled":
+    case "failed":
+    case "rejected":
+      return "destructive" as const;
+    case "confirmed":
+    case "processing":
+    case "shipped":
+    case "inactive":
+      return "secondary" as const;
+    default:
+      return "outline" as const;
+  }
+};
+
 export default function SellerReturns() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
+  const seqRef = useRef(0); // stale-response guard (filter/page changes)
 
   useEffect(() => {
     if (!user || (user.role !== "seller" && user.role !== "admin")) { router.push("/login"); return; }
@@ -27,15 +51,20 @@ export default function SellerReturns() {
   }, [user, router, page, statusFilter]);
 
   const loadReturns = async () => {
+    const seq = ++seqRef.current;
+    setLoading(true);
     try {
-      setLoading(true);
       const params: any = { page: String(page), limit: "15" };
       if (statusFilter !== "all") params.status = statusFilter;
       const data = await api.getSellerReturns(params);
+      if (seq !== seqRef.current) return; // stale response — ignore out-of-order replies
       setReturns(data.returns || []);
       setPagination(data.pagination);
-    } catch (err) { console.error(err); }
-    setLoading(false);
+    } catch (err) {
+      if (seq === seqRef.current) console.error(err);
+    } finally {
+      if (seq === seqRef.current) setLoading(false);
+    }
   };
 
   const handleApprove = async (id: string) => {
@@ -59,10 +88,10 @@ export default function SellerReturns() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Returns & Refunds</h1>
-        <p className="text-muted-foreground text-sm">Manage customer return requests</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Returns & Refunds</h1>
+        <p className="text-sm text-muted-foreground">Manage customer return requests</p>
       </div>
 
       <div className="flex gap-3">
@@ -79,39 +108,40 @@ export default function SellerReturns() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Card key={i}><CardContent className="p-4"><div className="animate-pulse h-16 bg-gray-200 rounded" /></CardContent></Card>)}
+          {[1, 2, 3].map((i) => <div key={i} className="rounded-lg border border-border bg-card p-4"><div className="h-16 animate-pulse rounded bg-muted" /></div>)}
         </div>
       ) : returns.length > 0 ? (
         <>
           <div className="space-y-3">
             {returns.map((r) => (
-              <Card key={r._id}>
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">#{r._id.slice(-8).toUpperCase()}</p>
-                        <Badge className={getStatusColor(r.orderStatus)}>{r.orderStatus}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">{r.user?.name} • {formatDate(r.createdAt)}</p>
-                      {r.cancelReason && <p className="text-xs text-orange-600 mt-1">Reason: {r.cancelReason}</p>}
+              <div key={r._id} className="rounded-lg border border-border bg-card p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-foreground">#{r._id.slice(-8).toUpperCase()}</p>
+                      <Badge variant={statusVariant(r.orderStatus)} className="text-xs">{r.orderStatus}</Badge>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-bold">{formatPrice(r.total)}</p>
-                      {(!r.orderStatus || r.orderStatus === 'returned') && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleApprove(r._id)}>
-                            <Check className="h-3 w-3 mr-1" /> Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleReject(r._id)}>
-                            <X className="h-3 w-3 mr-1" /> Reject
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{r.user?.name} • {formatDate(r.createdAt)}</p>
+                    {r.cancelReason && <p className="text-xs text-muted-foreground mt-1">Reason: {r.cancelReason}</p>}
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-3">
+                    <p className="font-bold text-foreground">{formatPrice(r.total)}</p>
+                    {/* Approve/Reject only while the return is still awaiting a
+                        decision — once approved the backend marks the order
+                        paymentStatus: 'refunded' (orderStatus stays 'returned'). */}
+                    {r.orderStatus === "returned" && r.paymentStatus !== "refunded" && (
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => handleApprove(r._id)}>
+                          <Check className="h-3 w-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleReject(r._id)}>
+                          <X className="h-3 w-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
@@ -123,10 +153,13 @@ export default function SellerReturns() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          <RotateCcw className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>No return requests found.</p>
-        </CardContent></Card>
+        <div className="py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <RotateCcw className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">No return requests</h2>
+          <p className="text-sm text-muted-foreground">Return requests will appear here</p>
+        </div>
       )}
     </div>
   );

@@ -1,14 +1,17 @@
 import { Router, Response } from 'express';
 import Cart from '../models/Cart';
 import Product from '../models/Product';
-import { AuthRequest, authenticate } from '../middleware/auth';
+import { AuthRequest, authenticate, authorize } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import asyncHandler from '../middleware/asyncHandler';
 
 const router = Router();
 
+// Cart is a customer (marketplace) feature — sellers/admins use their own dashboards
+router.use(authenticate, authorize('user'));
+
 // Get cart
-router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   let cart = await Cart.findOne({ user: req.user!._id })
     .populate({
       path: 'items.product',
@@ -41,12 +44,12 @@ router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Respons
 }));
 
 // Add to cart
-router.post('/add', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/add', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { productId, quantity = 1 } = req.body;
 
   if (!productId) throw new AppError('Product ID is required', 400);
 
-  const product = await Product.findOne({ _id: productId, isActive: true, isApproved: true });
+  const product = await Product.findOne({ _id: productId, isActive: true, isApproved: true }).lean();
   if (!product) throw new AppError('Product not found', 404);
   if (product.stock < quantity) {
     throw new AppError(`Only ${product.stock} items in stock`, 400);
@@ -83,14 +86,15 @@ router.post('/add', authenticate, asyncHandler(async (req: AuthRequest, res: Res
     .populate({
       path: 'items.product',
       select: 'name slug price mrp discount images stock',
-    });
+    })
+    .lean();
 
   const totalItems = populatedCart!.items.reduce((sum, item) => sum + item.quantity, 0);
   res.json({ cart: populatedCart, totalItems, message: 'Added to cart' });
 }));
 
 // Update cart item quantity
-router.put('/item/:productId', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/item/:productId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { quantity } = req.body;
   if (!quantity || quantity < 1) throw new AppError('Valid quantity is required', 400);
 
@@ -102,7 +106,7 @@ router.put('/item/:productId', authenticate, asyncHandler(async (req: AuthReques
   );
   if (!item) throw new AppError('Item not in cart', 404);
 
-  const product = await Product.findById(req.params.productId);
+  const product = await Product.findById(req.params.productId).lean();
   if (!product) throw new AppError('Product not found', 404);
   if (quantity > product.stock) {
     throw new AppError(`Only ${product.stock} items in stock`, 400);
@@ -116,14 +120,15 @@ router.put('/item/:productId', authenticate, asyncHandler(async (req: AuthReques
     .populate({
       path: 'items.product',
       select: 'name slug price mrp discount images stock',
-    });
+    })
+    .lean();
 
   const totalItems = populatedCart!.items.reduce((sum, item) => sum + item.quantity, 0);
   res.json({ cart: populatedCart, totalItems });
 }));
 
 // Remove from cart
-router.delete('/item/:productId', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/item/:productId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const cart = await Cart.findOne({ user: req.user!._id });
   if (!cart) throw new AppError('Cart not found', 404);
 
@@ -136,14 +141,15 @@ router.delete('/item/:productId', authenticate, asyncHandler(async (req: AuthReq
     .populate({
       path: 'items.product',
       select: 'name slug price mrp discount images stock',
-    });
+    })
+    .lean();
 
   const totalItems = populatedCart!.items.reduce((sum, item) => sum + item.quantity, 0);
   res.json({ cart: populatedCart, totalItems, message: 'Removed from cart' });
 }));
 
 // Clear cart
-router.delete('/clear', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/clear', asyncHandler(async (req: AuthRequest, res: Response) => {
   await Cart.findOneAndUpdate(
     { user: req.user!._id },
     { items: [] }

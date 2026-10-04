@@ -59,5 +59,9 @@ const UserSchema = new Schema<IUser>(
 
 UserSchema.index({ email: 1 });
 UserSchema.index({ role: 1 });
+// Admin/seller listing & dashboard filters (role-scoped newest-first scans)
+UserSchema.index({ createdAt: -1 });
+UserSchema.index({ role: 1, createdAt: -1 });
+UserSchema.index({ role: 1, 'sellerInfo.isApproved': 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

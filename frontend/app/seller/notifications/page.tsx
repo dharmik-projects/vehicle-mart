@@ -5,14 +5,12 @@ import { Bell, Check, CheckCheck, ChevronLeft, ChevronRight } from "lucide-react
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import toast from "react-hot-toast";
 
 export default function SellerNotifications() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -50,48 +48,48 @@ export default function SellerNotifications() {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  const getTypeColor = (type: string) => {
+  const getTypeBorder = (type: string) => {
     switch (type) {
-      case "success": return "bg-green-50 border-l-4 border-green-500";
-      case "error": return "bg-red-50 border-l-4 border-red-500";
-      case "warning": return "bg-yellow-50 border-l-4 border-yellow-500";
-      default: return "bg-blue-50 border-l-4 border-blue-500";
+      case "success": return "border-l-success";
+      case "error": return "border-l-destructive";
+      case "warning": return "border-l-warning";
+      default: return "border-l-muted-foreground";
     }
   };
 
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Notifications</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="text-sm text-muted-foreground">
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}` : "All caught up!"}
           </p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={handleMarkAllRead}><CheckCheck className="h-4 w-4 mr-2" /> Mark All Read</Button>
+          <Button variant="outline" onClick={handleMarkAllRead} className="rounded-lg w-fit"><CheckCheck className="h-4 w-4 mr-2" /> Mark All Read</Button>
         )}
       </div>
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Card key={i}><CardContent className="p-4"><div className="animate-pulse h-12 bg-gray-200 rounded" /></CardContent></Card>)}
+          {[1, 2, 3].map((i) => <div key={i} className="rounded-lg border border-border bg-card p-4"><div className="h-12 animate-pulse rounded bg-muted" /></div>)}
         </div>
       ) : notifications.length > 0 ? (
         <>
           <div className="space-y-2">
             {notifications.map((n) => (
-              <div key={n._id} className={`p-4 rounded-lg ${n.isRead ? "bg-white border" : getTypeColor(n.type)}`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className={`text-sm ${n.isRead ? "font-medium" : "font-semibold"}`}>{n.title}</p>
+              <div key={n._id} className={`rounded-lg border border-border border-l-4 p-4 ${n.isRead ? "bg-card" : "bg-muted/40"} ${getTypeBorder(n.type)}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className={`text-sm ${n.isRead ? "font-medium text-muted-foreground" : "font-semibold text-foreground"}`}>{n.title}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">{formatDate(n.createdAt)}</p>
                   </div>
                   {!n.isRead && (
-                    <Button size="sm" variant="ghost" onClick={() => handleMarkRead(n._id)}>
+                    <Button size="sm" variant="ghost" onClick={() => handleMarkRead(n._id)} className="shrink-0 text-muted-foreground hover:text-foreground">
                       <Check className="h-3 w-3" />
                     </Button>
                   )}
@@ -108,10 +106,13 @@ export default function SellerNotifications() {
           )}
         </>
       ) : (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>No notifications yet.</p>
-        </CardContent></Card>
+        <div className="py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Bell className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">No notifications</h2>
+          <p className="text-sm text-muted-foreground">You&apos;re all caught up!</p>
+        </div>
       )}
     </div>
   );

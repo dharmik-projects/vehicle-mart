@@ -10,6 +10,8 @@ export interface ICoupon extends Document {
   usageLimit: number;
   usedCount: number;
   isActive: boolean;
+  /** Optional: seller-owned coupon. Coupons without it are shared/global. */
+  seller?: mongoose.Types.ObjectId;
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +28,7 @@ const CouponSchema = new Schema<ICoupon>(
     usageLimit: { type: Number, default: 0, min: 0 },
     usedCount: { type: Number, default: 0, min: 0 },
     isActive: { type: Boolean, default: true },
+    seller: { type: Schema.Types.ObjectId, ref: 'User' },
     expiresAt: { type: Date, required: true },
   },
   { timestamps: true }
@@ -33,5 +36,8 @@ const CouponSchema = new Schema<ICoupon>(
 
 CouponSchema.index({ code: 1 });
 CouponSchema.index({ isActive: 1 });
+CouponSchema.index({ createdAt: -1 });
+// Seller-scoped coupon list (newest first). Docs without `seller` are shared.
+CouponSchema.index({ seller: 1, createdAt: -1 });
 
 export default mongoose.model<ICoupon>('Coupon', CouponSchema);

@@ -95,5 +95,17 @@ ProductSchema.index({ averageRating: -1 });
 ProductSchema.index({ totalSales: -1 });
 ProductSchema.index({ partNumber: 1 });
 ProductSchema.index({ oemPartNumber: 1 });
+// List endpoint combos: common (isActive, isApproved) filter + sort key in one
+// index so listing pages never need an in-memory sort at scale.
+ProductSchema.index({ isActive: 1, isApproved: 1, createdAt: -1 });
+ProductSchema.index({ isActive: 1, isApproved: 1, totalSales: -1 });
+ProductSchema.index({ isActive: 1, isApproved: 1, price: 1 });
+ProductSchema.index({ isActive: 1, isApproved: 1, averageRating: -1 });
+// Seller "my products" list (scoped by seller + status flags, newest first)
+ProductSchema.index({ seller: 1, isActive: 1, isApproved: 1, createdAt: -1 });
+// Public list filtered/sorted by sidebar facets
+ProductSchema.index({ isActive: 1, isApproved: 1, brand: 1 });
+ProductSchema.index({ isActive: 1, isApproved: 1, category: 1 });
+ProductSchema.index({ isActive: 1, isApproved: 1, stock: 1 });
 
 export default mongoose.model<IProduct>('Product', ProductSchema);

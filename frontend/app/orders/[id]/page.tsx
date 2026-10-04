@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { thumbUrl } from "@/lib/images";
 import Link from "next/link";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ChevronRight, Package, Truck, Check, Clock, X as XIcon, Loader2, CreditCard, AlertCircle, MapPin } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -22,11 +23,25 @@ const orderSteps = [
   { key: 'delivered', label: 'Delivered', icon: Check },
 ];
 
+const statusVariant = (status: string) => {
+  switch (status) {
+    case 'delivered': case 'paid': case 'active':
+      return 'success';
+    case 'pending': case 'refunded':
+      return 'warning';
+    case 'cancelled': case 'failed': case 'returned':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+};
+
 export default function OrderDetailPage() {
   const { id } = useParams() as { id: string };
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
@@ -40,9 +55,10 @@ export default function OrderDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    if (authLoading) return; // wait for auth resolution — never bounce to /login mid-flight
     if (!user) { router.push('/login'); return; }
     loadOrder();
-  }, [user, router, loadOrder]);
+  }, [user, authLoading, router, loadOrder]);
 
   useEffect(() => {
     if (searchParams.get('paid') === 'true') toast.success('Payment confirmed! Your order has been placed.');
@@ -78,7 +94,7 @@ export default function OrderDetailPage() {
         name: 'VehiclePart', description: `Order #${order._id.slice(-8).toUpperCase()}`,
         order_id: payData.razorpayOrderId,
         prefill: { name: user?.name || '', email: user?.email || '' },
-        theme: { color: '#2563eb' },
+        theme: { color: '#18181b' },
         handler: async (response: any) => {
           try {
             await api.verifyPayment({
@@ -100,7 +116,7 @@ export default function OrderDetailPage() {
     } catch (err: any) { toast.error(err.message || 'Failed to initialize payment'); setRetrying(false); }
   };
 
-  if (loading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8"><Skeleton className="h-96 rounded-xl" /></div>;
+  if (loading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 fade-in"><Skeleton className="h-96 rounded-lg" /></div>;
   if (!order) return null;
 
   const currentStepIndex = orderSteps.findIndex((s) => s.key === order.orderStatus);
@@ -110,35 +126,35 @@ export default function OrderDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
         <Link href="/" className="hover:text-primary">Home</Link>
         <ChevronRight className="h-3 w-3" />
         <Link href="/orders" className="hover:text-primary">Orders</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-gray-900">#{order._id.slice(-8).toUpperCase()}</span>
+        <span className="text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
       </div>
 
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Order #{order._id.slice(-8).toUpperCase()}</h1>
-          <p className="text-sm text-gray-500">Placed on {formatDate(order.createdAt)}</p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-5">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">Order #{order._id.slice(-8).toUpperCase()}</h1>
+          <p className="text-sm text-muted-foreground">Placed on {formatDate(order.createdAt)}</p>
         </div>
-        <Badge className={getStatusColor(order.orderStatus)}>{order.orderStatus}</Badge>
+        <Badge variant={statusVariant(order.orderStatus)} className="vp-badge shrink-0 text-sm px-3 py-1">{order.orderStatus}</Badge>
       </div>
 
       {/* Payment Retry Banner */}
       {(showPaymentRetry || showPaymentFailed) && (
-        <div className="mb-5 p-4 rounded-xl border border-orange-200 bg-orange-50 flex items-center justify-between gap-4">
+        <div className="mb-5 p-4 rounded-lg border border-warning/40 bg-warning/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-orange-600 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-orange-800">
+            <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
                 {showPaymentFailed ? 'Payment failed' : 'Payment pending'} — Complete payment to confirm your order
               </p>
-              <p className="text-xs text-orange-600">Amount: {formatPrice(order.total)}</p>
+              <p className="text-xs text-muted-foreground">Amount: {formatPrice(order.total)}</p>
             </div>
           </div>
-          <Button onClick={handleRetryPayment} disabled={retrying} size="sm" className="rounded-lg shrink-0">
+          <Button onClick={handleRetryPayment} disabled={retrying} size="sm" className="bg-primary text-primary-foreground shadow-soft hover:shadow-card shrink-0">
             {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
             {retrying ? 'Processing...' : 'Pay Now'}
           </Button>
@@ -147,7 +163,7 @@ export default function OrderDetailPage() {
 
       {/* Order Progress */}
       {!['cancelled', 'returned'].includes(order.orderStatus) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+        <div className="bg-card rounded-lg border border-border p-5 mb-5">
           <div className="flex items-center">
             {orderSteps.map((step, i) => {
               const isCompleted = i <= currentStepIndex;
@@ -156,20 +172,20 @@ export default function OrderDetailPage() {
               return (
                 <div key={step.key} className="flex flex-col items-center flex-1">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    isCompleted ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'
+                    isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                   } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="text-[10px] sm:text-xs mt-1.5 text-center text-gray-500 hidden sm:block">{step.label}</span>
+                  <span className="text-xs mt-1.5 text-center text-muted-foreground hidden sm:block">{step.label}</span>
                   {i < orderSteps.length - 1 && (
-                    <div className={`absolute h-0.5 w-full ${i < currentStepIndex ? 'bg-primary' : 'bg-gray-200'}`} style={{ display: 'none' }} />
+                    <div className={`absolute h-0.5 w-full ${i < currentStepIndex ? 'bg-primary' : 'bg-border'}`} style={{ display: 'none' }} />
                   )}
                 </div>
               );
             })}
           </div>
           {/* Progress bar */}
-          <div className="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div className="mt-3 h-1 bg-muted rounded-full overflow-hidden">
             <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.max(5, ((currentStepIndex + 1) / orderSteps.length) * 100)}%` }} />
           </div>
         </div>
@@ -177,87 +193,87 @@ export default function OrderDetailPage() {
 
       <div className="grid md:grid-cols-2 gap-5">
         {/* Items */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Order Items</h3>
+        <div className="bg-card rounded-lg border border-border p-5">
+          <h3 className="text-base font-bold text-foreground mb-3">Order Items</h3>
           <div className="space-y-3">
             {order.items.map((item: any, i: number) => (
               <div key={i} className="flex gap-3">
-                <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden shrink-0">
+                <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden shrink-0">
                   {item.image ? (
-                    <img src={item.image} alt="" className="w-full h-full object-cover" />
+                    <img src={thumbUrl(item.image, 160)} alt="" loading="lazy" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">📦</div>
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">📦</div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
-                  <p className="text-xs text-gray-500">Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                  <p className="text-sm font-medium text-foreground line-clamp-1">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatPrice(item.price)}</p>
                 </div>
-                <p className="text-sm font-bold text-gray-900 shrink-0">{formatPrice(item.price * item.quantity)}</p>
+                <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(item.price * item.quantity)}</p>
               </div>
             ))}
           </div>
           <Separator className="my-3" />
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{formatPrice(order.tax)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="text-foreground">{formatPrice(order.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className={order.shippingCost === 0 ? 'text-success font-medium' : 'text-foreground'}>{order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="text-foreground">{formatPrice(order.tax)}</span></div>
             <Separator />
-            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatPrice(order.total)}</span></div>
+            <div className="flex justify-between font-semibold text-lg text-foreground"><span>Total</span><span>{formatPrice(order.total)}</span></div>
           </div>
         </div>
 
         {/* Details */}
         <div className="space-y-5">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-card rounded-lg border border-border p-5">
             <div className="flex items-center gap-2 mb-3">
               <MapPin className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-gray-900">Shipping Address</h3>
+              <h3 className="text-base font-bold text-foreground">Shipping Address</h3>
             </div>
-            <p className="text-sm font-medium">{order.shippingAddress.fullName}</p>
-            <p className="text-sm text-gray-500">{order.shippingAddress.phone}</p>
-            <p className="text-sm text-gray-500">{order.shippingAddress.addressLine1}</p>
-            {order.shippingAddress.addressLine2 && <p className="text-sm text-gray-500">{order.shippingAddress.addressLine2}</p>}
-            <p className="text-sm text-gray-500">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
+            <p className="text-sm font-medium text-foreground">{order.shippingAddress.fullName}</p>
+            <p className="text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
+            <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine1}</p>
+            {order.shippingAddress.addressLine2 && <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine2}</p>}
+            <p className="text-sm text-muted-foreground">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-card rounded-lg border border-border p-5">
             <div className="flex items-center gap-2 mb-3">
               <CreditCard className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-gray-900">Payment</h3>
+              <h3 className="text-base font-bold text-foreground">Payment</h3>
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Method</span>
-                <span className="font-medium capitalize">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod === 'upi' ? 'UPI' : 'Online Payment'}</span>
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Method</span>
+                <span className="font-medium text-foreground text-right capitalize">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod === 'upi' ? 'UPI' : 'Online Payment'}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Status</span>
-                <Badge className={getStatusColor(order.paymentStatus) + ' text-[10px]'}>{order.paymentStatus}</Badge>
+              <div className="flex justify-between items-center gap-3 text-sm">
+                <span className="text-muted-foreground">Status</span>
+                <Badge variant={statusVariant(order.paymentStatus)} className="vp-badge text-xs">{order.paymentStatus}</Badge>
               </div>
               {order.razorpayPaymentId && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Transaction ID</span>
-                  <span className="font-mono text-xs text-gray-600">{order.razorpayPaymentId}</span>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Transaction ID</span>
+                  <span className="font-mono text-xs text-muted-foreground break-all text-right">{order.razorpayPaymentId}</span>
                 </div>
               )}
               {order.trackingNumber && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Tracking</span>
-                  <span className="font-mono text-xs">{order.trackingNumber}</span>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Tracking</span>
+                  <span className="font-mono text-xs text-foreground break-all text-right">{order.trackingNumber}</span>
                 </div>
               )}
               {order.estimatedDelivery && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Est. Delivery</span>
-                  <span>{formatDate(order.estimatedDelivery)}</span>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Est. Delivery</span>
+                  <span className="text-foreground">{formatDate(order.estimatedDelivery)}</span>
                 </div>
               )}
             </div>
           </div>
 
           {['pending', 'confirmed'].includes(order.orderStatus) && (
-            <Button variant="destructive" className="w-full rounded-lg" onClick={handleCancel}>
+            <Button variant="outline" className="w-full text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/40" onClick={handleCancel}>
               Cancel Order
             </Button>
           )}

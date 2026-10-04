@@ -6,6 +6,23 @@ export interface AuthRequest extends Request {
   user?: IUser;
 }
 
+// Short-TTL in-process cache for the authenticated user lookup: every API
+// request used to pay a MongoDB round trip + network hop just to re-fetch
+// the same user document. Entries expire quickly so role/isActive changes
+// propagate almost immediately; misses (user not found) are never cached.
+const USER_CACHE_TTL_MS = 15000;
+const USER_CACHE_MAX_SIZE = 5000;
+const userCache = new Map<string, { user: any; expires: number }>();
+
+/** Drop one cached user (by id) or the whole cache when no id is given. */
+export const clearUserCache = (id?: string): void => {
+  if (id !== undefined) {
+    userCache.delete(String(id));
+    return;
+  }
+  userCache.clear();
+};
+
 export const authenticate = async (
   req: AuthRequest,
   res: Response,
@@ -21,7 +38,22 @@ export const authenticate = async (
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
 
-    const user = await User.findById(decoded.userId).select('-password -refreshToken');
+    // Cache hit → skip the DB round trip; miss → existing lookup, store result
+    const cacheKey = String(decoded.userId);
+    const cached = userCache.get(cacheKey);
+    let user;
+    if (cached && cached.expires > Date.now()) {
+      user = cached.user;
+    } else {
+      user = await User.findById(decoded.userId).select('-password -refreshToken');
+      if (user) {
+        if (userCache.size > USER_CACHE_MAX_SIZE) userCache.clear();
+        userCache.set(cacheKey, { user, expires: Date.now() + USER_CACHE_TTL_MS });
+      } else {
+        userCache.delete(cacheKey); // drop any stale entry; never cache misses
+      }
+    }
+
     if (!user) {
       res.status(401).json({ message: 'User not found' });
       return;

@@ -26,5 +26,8 @@ const VehicleModelSchema = new Schema<IVehicleModel>(
 VehicleModelSchema.index({ brand: 1 });
 VehicleModelSchema.index({ slug: 1 });
 VehicleModelSchema.index({ vehicleType: 1 });
+// Active model pickers (by name) and brand-scoped cascades
+VehicleModelSchema.index({ isActive: 1, name: 1 });
+VehicleModelSchema.index({ brand: 1, isActive: 1, name: 1 });
 
 export default mongoose.model<IVehicleModel>('VehicleModel', VehicleModelSchema);

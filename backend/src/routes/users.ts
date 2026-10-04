@@ -100,6 +100,9 @@ router.post(
       return;
     }
 
+    if (req.user!.role === 'admin') {
+      throw new AppError('Admin accounts cannot apply as sellers', 403);
+    }
     if (req.user!.role === 'seller') {
       throw new AppError('Already a seller', 400);
     }

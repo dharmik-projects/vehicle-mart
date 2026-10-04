@@ -1,45 +1,56 @@
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { body, validationResult } from 'express-validator';
 import Review from '../models/Review';
 import Product from '../models/Product';
 import Order from '../models/Order';
-import { AuthRequest, authenticate, authorize, optionalAuth } from '../middleware/auth';
+import { AuthRequest, authenticate, authorize } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { uploadMultiple, uploadToCloudinary } from '../middleware/upload';
-import { getPaginationMeta } from '../utils/helpers';
+import { getPaginationMeta, parsePagination } from '../utils/helpers';
 import asyncHandler from '../middleware/asyncHandler';
 
 const router = Router();
 
 // Get reviews for a product
-router.get('/product/:productId', optionalAuth, asyncHandler(async (req: any, res: Response) => {
-  const { page = '1', limit = '10', sort = 'newest' } = req.query;
-  const pageNum = parseInt(page as string);
-  const limitNum = parseInt(limit as string);
+router.get('/product/:productId', asyncHandler(async (req: any, res: Response) => {
+  const { sort = 'newest' } = req.query;
+  // Clamp page/limit (default page size stays 10)
+  const { page, limit, skip } = parsePagination(req.query, 10, 100);
 
   let sortOption: any = { createdAt: -1 };
   if (sort === 'highest') sortOption = { rating: -1 };
   else if (sort === 'lowest') sortOption = { rating: 1 };
   else if (sort === 'helpful') sortOption = { helpful: -1 };
 
-  const total = await Review.countDocuments({ product: req.params.productId });
-  const reviews = await Review.find({ product: req.params.productId })
-    .populate('user', 'name avatar')
-    .sort(sortOption)
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .lean();
+  // Resolve the stats id up front, before any query promise is created, so
+  // invalid ids still surface exactly as before (CastError → 400 from
+  // count/find; RangeError → 500 for ids the hex conversion rejects).
+  const rawProductId = String(req.params.productId);
+  const statsProductId = mongoose.Types.ObjectId.isValid(rawProductId)
+    ? mongoose.Types.ObjectId.createFromHexString(rawProductId)
+    : null;
 
-  const ratingBreakdown = await Review.aggregate([
-    { $match: { product: require('mongoose').Types.ObjectId.createFromHexString(req.params.productId) } },
-    { $group: { _id: '$rating', count: { $sum: 1 } } },
-    { $sort: { _id: -1 } },
+  // Count, page fetch and rating stats are independent — run them together
+  const [total, reviews, ratingBreakdown] = await Promise.all([
+    Review.countDocuments({ product: req.params.productId }),
+    Review.find({ product: req.params.productId })
+      .populate('user', 'name avatar')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Review.aggregate([
+      { $match: { product: statsProductId } },
+      { $group: { _id: '$rating', count: { $sum: 1 } } },
+      { $sort: { _id: -1 } },
+    ]),
   ]);
 
   res.json({
     reviews,
     ratingBreakdown,
-    pagination: getPaginationMeta(total, pageNum, limitNum),
+    pagination: getPaginationMeta(total, page, limit),
   });
 }));
 
@@ -47,6 +58,7 @@ router.get('/product/:productId', optionalAuth, asyncHandler(async (req: any, re
 router.post(
   '/',
   authenticate,
+  authorize('user'),
   uploadMultiple,
   [
     body('productId').notEmpty().withMessage('Product ID is required'),
@@ -114,7 +126,7 @@ router.post(
 );
 
 // Update review
-router.put('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, authorize('user'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const review = await Review.findOne({ _id: req.params.id, user: req.user!._id });
   if (!review) throw new AppError('Review not found', 404);
 
@@ -141,7 +153,7 @@ router.put('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Resp
 }));
 
 // Delete review
-router.delete('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, authorize('user'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const review = await Review.findOne({ _id: req.params.id, user: req.user!._id });
   if (!review) throw new AppError('Review not found', 404);
 
@@ -170,7 +182,7 @@ router.delete('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: R
 }));
 
 // Mark review as helpful
-router.post('/:id/helpful', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/:id/helpful', authenticate, authorize('user'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
     { $inc: { helpful: 1 } },

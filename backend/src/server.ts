@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import connectDB from './config/db';
 import routes from './routes';
+import compress from './middleware/compress';
 import { errorHandler, AppError } from './middleware/errorHandler';
 
 const app = express();
@@ -15,8 +16,11 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Gzip JSON API responses (only when the client accepts gzip)
+app.use('/api', compress);
 
 // API routes
 app.use('/api', routes);

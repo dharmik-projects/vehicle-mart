@@ -16,7 +16,10 @@ const connectDB = async (retries = MAX_RETRIES): Promise<void> => {
         connectTimeoutMS: 20000,
         socketTimeoutMS: 45000,
         bufferCommands: false,
-        autoIndex: process.env.NODE_ENV !== 'production',
+        maxPoolSize: 20,
+        // Always build declared indexes (small collections, self-healing in
+        // dev and prod) — never rely on NODE_ENV to decide.
+        autoIndex: true,
       });
       console.log(`MongoDB Connected: ${conn.connection.host} (attempt ${attempt})`);
 

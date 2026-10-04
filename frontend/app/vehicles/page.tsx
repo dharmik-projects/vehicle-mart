@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
+import { cached } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +36,10 @@ export default function VehiclesPage() {
   const loadBrands = async () => {
     setLoading(true);
     try {
-      const data = await api.getBrands(vehicleType || undefined);
+      // Shared cache with the homepage VehicleSelector (same keys) — revisit is instant
+      const data = await cached(`vbrands:${vehicleType || '__all'}`, () =>
+        api.getBrands(vehicleType || undefined)
+      );
       setBrands(data.brands || []);
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -44,7 +48,7 @@ export default function VehiclesPage() {
   const loadModels = async () => {
     setLoading(true);
     try {
-      const data = await api.getModels(selectedBrand);
+      const data = await cached(`vmodels:${selectedBrand}`, () => api.getModels(selectedBrand));
       setModels(data.models || []);
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -53,7 +57,7 @@ export default function VehiclesPage() {
   const loadVariants = async () => {
     setLoading(true);
     try {
-      const data = await api.getVariants(selectedModel);
+      const data = await cached(`vvariants:${selectedModel}`, () => api.getVariants(selectedModel));
       setVariants(data.variants || []);
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -68,18 +72,20 @@ export default function VehiclesPage() {
     router.push(`/products?${params.toString()}`);
   };
 
+  const labelClass = "text-[13px] font-medium normal-case tracking-normal text-foreground mb-1.5 block";
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="container mx-auto px-4 py-8 max-w-2xl fade-in">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold mb-2">Select Your Vehicle</h1>
+        <h1 className="text-2xl font-display font-semibold text-foreground mb-2">Select Your Vehicle</h1>
         <p className="text-muted-foreground">Find compatible spare parts for your vehicle</p>
       </div>
 
-      <Card>
+      <Card className="rounded-lg">
         <CardContent className="p-6 space-y-4">
           {/* Vehicle Type */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Vehicle Type</label>
+            <label className={labelClass}>Vehicle Type</label>
             <Select value={vehicleType || "__all"} onValueChange={(v) => { setVehicleType(v === '__all' ? '' : v); setSelectedBrand(''); setSelectedModel(''); setSelectedVariant(''); setModels([]); setVariants([]); }}>
               <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
               <SelectContent>
@@ -97,7 +103,7 @@ export default function VehiclesPage() {
 
           {/* Brand */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Brand</label>
+            <label className={labelClass}>Brand</label>
             <Select value={selectedBrand} onValueChange={(v) => { setSelectedBrand(v); setSelectedModel(''); setSelectedVariant(''); setVariants([]); }}>
               <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
               <SelectContent>
@@ -114,7 +120,7 @@ export default function VehiclesPage() {
 
           {/* Model */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Model</label>
+            <label className={labelClass}>Model</label>
             <Select value={selectedModel} onValueChange={(v) => { setSelectedModel(v); setSelectedVariant(''); }}>
               <SelectTrigger disabled={!selectedBrand}>
                 <SelectValue placeholder={selectedBrand ? "Select model" : "Select brand first"} />
@@ -129,7 +135,7 @@ export default function VehiclesPage() {
 
           {/* Variant */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Variant (Optional)</label>
+            <label className={labelClass}>Variant (Optional)</label>
             <Select value={selectedVariant} onValueChange={setSelectedVariant}>
               <SelectTrigger disabled={!selectedModel}>
                 <SelectValue placeholder={selectedModel ? "Select variant" : "Select model first"} />
@@ -144,7 +150,7 @@ export default function VehiclesPage() {
             </Select>
           </div>
 
-          <Button className="w-full" size="lg" onClick={handleSearch} disabled={!selectedBrand}>
+          <Button className="w-full bg-primary text-primary-foreground shadow-soft hover:shadow-card" size="lg" onClick={handleSearch} disabled={!selectedBrand}>
             Find Compatible Parts
           </Button>
         </CardContent>

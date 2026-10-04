@@ -37,3 +37,21 @@ export const getPaginationMeta = (
     hasPrevPage: page > 1,
   };
 };
+
+/**
+ * Clamp pagination query params so a client can never request an
+ * unbounded page size (e.g. ?limit=100000) or an invalid page.
+ */
+export const parsePagination = (
+  query: any,
+  defaultLimit: number = 20,
+  maxLimit: number = 100
+) => {
+  const page = Math.max(parseInt(query?.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(query?.limit, 10) || defaultLimit, 1), maxLimit);
+  return { page, limit, skip: (page - 1) * limit };
+};
+
+/** Escape user-supplied text before embedding it in a RegExp. */
+export const escapeRegex = (text: string): string =>
+  String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

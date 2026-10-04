@@ -1,20 +1,25 @@
 import { Router, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import Address from '../models/Address';
-import { AuthRequest, authenticate } from '../middleware/auth';
+import { AuthRequest, authenticate, authorize } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import asyncHandler from '../middleware/asyncHandler';
 
 const router = Router();
 
+// Address book belongs to the customer checkout flow
+router.use(authenticate, authorize('user'));
+
 // Get all addresses
-router.get('/', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const addresses = await Address.find({ user: req.user!._id }).sort({ isDefault: -1, createdAt: -1 });
+router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const addresses = await Address.find({ user: req.user!._id })
+    .sort({ isDefault: -1, createdAt: -1 })
+    .lean();
   res.json({ addresses });
 }));
 
 // Get single address
-router.get('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
   const address = await Address.findOne({ _id: req.params.id, user: req.user!._id });
   if (!address) throw new AppError('Address not found', 404);
   res.json({ address });
@@ -23,7 +28,6 @@ router.get('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Resp
 // Create address
 router.post(
   '/',
-  authenticate,
   [
     body('label').trim().notEmpty().withMessage('Label is required'),
     body('fullName').trim().notEmpty().withMessage('Full name is required'),
@@ -57,7 +61,7 @@ router.post(
 );
 
 // Update address
-router.put('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
   const address = await Address.findOne({ _id: req.params.id, user: req.user!._id });
   if (!address) throw new AppError('Address not found', 404);
 
@@ -72,14 +76,14 @@ router.put('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Resp
 }));
 
 // Delete address
-router.delete('/:id', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
   const address = await Address.findOneAndDelete({ _id: req.params.id, user: req.user!._id });
   if (!address) throw new AppError('Address not found', 404);
   res.json({ message: 'Address deleted' });
 }));
 
 // Set default
-router.put('/:id/default', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/:id/default', asyncHandler(async (req: AuthRequest, res: Response) => {
   await Address.updateMany({ user: req.user!._id }, { isDefault: false });
   const address = await Address.findOneAndUpdate(
     { _id: req.params.id, user: req.user!._id },

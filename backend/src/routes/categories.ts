@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import Category from '../models/Category';
+import Product from '../models/Product';
 import { AuthRequest, authenticate, authorize } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { generateSlug } from '../utils/helpers';
@@ -9,24 +10,58 @@ const router = Router();
 
 // Get all categories (top-level with subcategories)
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
-  const categories = await Category.find({ isActive: true, parent: undefined })
-    .sort({ sortOrder: 1, name: 1 });
-  
-  const categoriesWithChildren = await Promise.all(
-    categories.map(async (cat) => {
-      const children = await Category.find({ parent: cat._id, isActive: true }).sort({ sortOrder: 1 });
-      return { ...cat.toObject(), children };
-    })
+  // ONE query for the whole visible tree (previously 1 + N: one query per
+  // top-level category to fetch its children), plus a parallel count of
+  // active+approved products per category (lets the UI show only categories
+  // that actually have products).
+  const [all, counts] = await Promise.all([
+    Category.find({ isActive: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .lean(),
+    Product.aggregate([
+      { $match: { isActive: true, isApproved: true } },
+      { $group: { _id: '$category', n: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const countByCat = new Map<string, number>(
+    counts.map((c: any) => [String(c._id), c.n as number])
   );
 
-  res.json({ categories: categoriesWithChildren });
+  const roots = all.filter((cat) => !cat.parent);
+  const rootIds = new Set(roots.map((cat) => String(cat._id)));
+  const childrenByParent = new Map<string, any[]>();
+  for (const cat of all) {
+    if (!cat.parent) continue;
+    const key = String(cat.parent);
+    if (!rootIds.has(key)) continue; // previous behaviour: one level deep only
+    const list = childrenByParent.get(key);
+    if (list) list.push(cat);
+    else childrenByParent.set(key, [cat]);
+  }
+
+  const categories = roots.map((cat) => {
+    const children = (childrenByParent.get(String(cat._id)) ?? []).map((ch) => ({
+      ...ch,
+      productCount: countByCat.get(String(ch._id)) ?? 0,
+    }));
+    const childSum = children.reduce((sum, ch) => sum + ch.productCount, 0);
+    return {
+      ...cat,
+      productCount: (countByCat.get(String(cat._id)) ?? 0) + childSum,
+      children,
+    };
+  });
+
+  res.json({ categories });
 }));
 
 // Get all flat categories
 router.get('/all', asyncHandler(async (_req: Request, res: Response) => {
   const categories = await Category.find({ isActive: true })
     .populate('parent', 'name slug')
-    .sort({ sortOrder: 1, name: 1 });
+    .sort({ sortOrder: 1, name: 1 })
+    .lean();
   res.json({ categories });
 }));
 

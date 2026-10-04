@@ -31,5 +31,10 @@ ReviewSchema.index({ product: 1 });
 ReviewSchema.index({ user: 1 });
 ReviewSchema.index({ product: 1, user: 1 }, { unique: true });
 ReviewSchema.index({ rating: -1 });
+// Product review list sorts: newest / highest / lowest / helpful
+ReviewSchema.index({ createdAt: -1 });
+ReviewSchema.index({ product: 1, createdAt: -1 });
+ReviewSchema.index({ product: 1, rating: 1 });
+ReviewSchema.index({ product: 1, helpful: 1 });
 
 export default mongoose.model<IReview>('Review', ReviewSchema);

@@ -1,77 +1,142 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ShieldCheck, Truck, RotateCcw, BadgeCheck, Phone, Mail, MapPin } from "lucide-react";
+
+const columns = [
+  {
+    title: "Marketplace",
+    links: [
+      { label: "Home", href: "/" },
+      { label: "All Parts", href: "/products" },
+      { label: "Shop by Vehicle", href: "/vehicles" },
+      { label: "Categories", href: "/categories" },
+    ],
+  },
+  {
+    title: "Vehicle Types",
+    links: [
+      { label: "Car Parts", href: "/products?vehicleType=car" },
+      { label: "Bike Parts", href: "/products?vehicleType=2-wheeler" },
+      { label: "Truck Parts", href: "/products?vehicleType=truck" },
+      { label: "Tractor Parts", href: "/products?vehicleType=tractor" },
+      { label: "EV Parts", href: "/products?vehicleType=ev" },
+    ],
+  },
+  {
+    title: "Customer Care",
+    links: [
+      { label: "My Account", href: "/profile" },
+      { label: "Track Orders", href: "/orders" },
+      { label: "Wishlist", href: "/wishlist" },
+      { label: "Cart", href: "/cart" },
+      { label: "Sign in", href: "/login" },
+    ],
+  },
+  {
+    title: "Sell with us",
+    links: [
+      { label: "Become a Seller", href: "/become-seller" },
+      { label: "Seller Login", href: "/login" },
+      { label: "Seller Dashboard", href: "/seller" },
+    ],
+  },
+];
+
+const trust = [
+  { icon: <ShieldCheck className="h-4 w-4" />, label: "100% Genuine Parts" },
+  { icon: <Truck className="h-4 w-4" />, label: "Pan-India Delivery" },
+  { icon: <RotateCcw className="h-4 w-4" />, label: "Easy Returns" },
+  { icon: <BadgeCheck className="h-4 w-4" />, label: "Verified Sellers" },
+];
 
 export default function Footer() {
   const pathname = usePathname();
-  if (pathname.startsWith("/admin") || pathname.startsWith("/seller")) return null;
+
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/seller")) return null;
 
   return (
-    <footer className="bg-gray-900 text-gray-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
-          {/* Brand */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-3">
-              <span className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center text-sm font-bold">VP</span>
-              <span className="text-white font-bold text-lg">VehiclePart</span>
-            </Link>
-            <p className="text-sm leading-relaxed max-w-xs">
-              India&apos;s vehicle spare parts marketplace. Find genuine and compatible parts for every vehicle.
-            </p>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-3">Quick Links</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="hover:text-white transition-colors">Home</Link></li>
-              <li><Link href="/products" className="hover:text-white transition-colors">All Parts</Link></li>
-              <li><Link href="/vehicles" className="hover:text-white transition-colors">By Vehicle</Link></li>
-              <li><Link href="/categories" className="hover:text-white transition-colors">Categories</Link></li>
-            </ul>
-          </div>
-
-          {/* Vehicle Parts */}
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-3">Vehicle Parts</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/products?vehicleType=car" className="hover:text-white transition-colors">Car Parts</Link></li>
-              <li><Link href="/products?vehicleType=2-wheeler" className="hover:text-white transition-colors">Bike Parts</Link></li>
-              <li><Link href="/products?vehicleType=truck" className="hover:text-white transition-colors">Truck Parts</Link></li>
-              <li><Link href="/products?vehicleType=tractor" className="hover:text-white transition-colors">Tractor Parts</Link></li>
-              <li><Link href="/products?vehicleType=ev" className="hover:text-white transition-colors">EV Parts</Link></li>
-            </ul>
-          </div>
-
-          {/* Customer Support */}
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-3">Support</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/profile" className="hover:text-white transition-colors">My Account</Link></li>
-              <li><Link href="/orders" className="hover:text-white transition-colors">Track Orders</Link></li>
-              <li><span className="cursor-default">Shipping &amp; Delivery</span></li>
-              <li><span className="cursor-default">Returns &amp; Refunds</span></li>
-            </ul>
-          </div>
-
-          {/* Seller */}
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-3">Seller</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/become-seller" className="hover:text-white transition-colors">Become a Seller</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">Seller Login</Link></li>
-              <li><Link href="/seller" className="hover:text-white transition-colors">Seller Dashboard</Link></li>
-            </ul>
+    <footer className="border-t border-border bg-muted/50">
+      {/* Trust strip — hidden on the homepage, which has the full Trust Features section */}
+      {pathname !== "/" && (
+        <div className="border-b border-border bg-card">
+          <div className="vp-container grid grid-cols-2 gap-x-6 gap-y-4 py-6 sm:gap-y-3 lg:grid-cols-4">
+            {trust.map((t) => (
+              <div key={t.label} className="flex items-center gap-2.5 text-sm font-medium text-foreground">
+                <span className="text-muted-foreground">{t.icon}</span>
+                {t.label}
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Bottom bar */}
-        <div className="border-t border-gray-800 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
-          <p>&copy; {new Date().getFullYear()} VehiclePart. All rights reserved.</p>
-          <div className="flex gap-4">
-            <span className="cursor-default">Privacy Policy</span>
-            <span className="cursor-default">Terms &amp; Conditions</span>
+      {/* Columns */}
+      <div className="vp-container py-8 sm:py-12">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-6">
+          {/* Brand */}
+          <div className="lg:col-span-2">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground">
+                VP
+              </span>
+              <span className="font-display text-lg font-semibold tracking-tight text-foreground">
+                VehiclePart
+              </span>
+            </Link>
+            <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+              India&apos;s marketplace for genuine and compatible spare parts — cars, bikes,
+              trucks, tractors and EVs from verified sellers.
+            </p>
+
+            <div className="mt-5 space-y-2.5 text-[15px] text-muted-foreground">
+              <a href="tel:+918000000000" className="flex items-center gap-2.5 transition-colors hover:text-foreground">
+                <Phone className="h-4 w-4" /> +91 80000 00000
+              </a>
+              <a href="mailto:support@vehiclepart.com" className="flex items-center gap-2.5 transition-colors hover:text-foreground">
+                <Mail className="h-4 w-4" /> support@vehiclepart.com
+              </a>
+              <p className="flex items-center gap-2.5">
+                <MapPin className="h-4 w-4" /> Made in India
+              </p>
+            </div>
+          </div>
+
+          {/* Link columns */}
+          {columns.map((col) => (
+            <div key={col.title}>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                {col.title}
+              </h3>
+              <ul className="mt-3.5 space-y-2.5">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-foreground/70 transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="border-t border-border">
+        <div className="vp-container flex flex-col items-center justify-between gap-3 py-4 sm:flex-row">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} VehiclePart. All rights reserved.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            <Link href="/products" className="transition-colors hover:text-foreground">All Parts</Link>
+            <Link href="/vehicles" className="transition-colors hover:text-foreground">By Vehicle</Link>
+            <Link href="/become-seller" className="transition-colors hover:text-foreground">Sell on VehiclePart</Link>
+            <Link href="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
+            <Link href="/terms" className="transition-colors hover:text-foreground">Terms</Link>
           </div>
         </div>
       </div>

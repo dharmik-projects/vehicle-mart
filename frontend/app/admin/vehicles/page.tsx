@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Car } from "lucide-react";
 import { api } from "@/lib/api";
-import { getStatusColor } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,29 @@ import toast from "react-hot-toast";
 
 const vehicleTypes = ["2-wheeler", "car", "truck", "tractor", "ev", "three-wheeler", "bus"];
 const fuelTypes = ["petrol", "diesel", "electric", "hybrid", "cng", "lpg"];
+
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case "active":
+    case "delivered":
+    case "paid":
+    case "confirmed":
+      return "success";
+    case "pending":
+    case "processing":
+    case "shipped":
+    case "refunded":
+      return "warning";
+    case "cancelled":
+    case "failed":
+    case "returned":
+      return "destructive";
+    case "inactive":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
 
 export default function AdminVehiclesPage() {
   const [tab, setTab] = useState("brands");
@@ -110,8 +132,8 @@ export default function AdminVehiclesPage() {
   const currentDialog = tab === "brands" ? "brand" : tab === "models" ? "model" : "variant";
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2"><Car className="h-6 w-6" /> Vehicle Management</h1>
+    <div className="space-y-5 fade-in">
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><Car className="h-6 w-6" /> Vehicle Management</h1>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -124,70 +146,74 @@ export default function AdminVehiclesPage() {
           <div className="flex justify-end mb-4">
             <Button onClick={() => openBrandDialog()}><Plus className="h-4 w-4 mr-1" /> Add Brand</Button>
           </div>
-          <Card><CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-gray-50">
-                <th className="text-left py-3 px-4 font-medium">Name</th>
-                <th className="text-left py-3 px-4 font-medium">Vehicle Type</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-right py-3 px-4 font-medium">Actions</th>
-              </tr></thead>
-              <tbody>
-                {brands.map((b) => (
-                  <tr key={b._id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium">{b.name}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{b.vehicleType?.join(", ") || "—"}</td>
-                    <td className="py-3 px-4"><Badge className={b.isActive ? getStatusColor("active") : getStatusColor("inactive")}>{b.isActive ? "Active" : "Inactive"}</Badge></td>
-                    <td className="py-3 px-4 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => openBrandDialog(b)}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteBrand(b._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent></Card>
+          <div className="bg-card rounded-lg border border-border">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="text-left py-3 px-4 font-medium">Name</th>
+                  <th className="text-left py-3 px-4 font-medium">Vehicle Type</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-right py-3 px-4 font-medium">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {brands.map((b) => (
+                    <tr key={b._id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                      <td className="py-3 px-4 font-medium">{b.name}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{b.vehicleType?.join(", ") || "—"}</td>
+                      <td className="py-3 px-4"><Badge variant={statusBadgeVariant(b.isActive ? "active" : "inactive")}>{b.isActive ? "Active" : "Inactive"}</Badge></td>
+                      <td className="py-3 px-4 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => openBrandDialog(b)}><Pencil className="h-3 w-3" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteBrand(b._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="models" className="mt-4">
           <div className="flex justify-end mb-4">
             <Button onClick={() => openModelDialog()}><Plus className="h-4 w-4 mr-1" /> Add Model</Button>
           </div>
-          <Card><CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b bg-gray-50">
-                <th className="text-left py-3 px-4 font-medium">Name</th>
-                <th className="text-left py-3 px-4 font-medium">Brand</th>
-                <th className="text-left py-3 px-4 font-medium">Type</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-right py-3 px-4 font-medium">Actions</th>
-              </tr></thead>
-              <tbody>
-                {models.map((m) => (
-                  <tr key={m._id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium">{m.name}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{m.brand?.name || "—"}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{m.vehicleType}</td>
-                    <td className="py-3 px-4"><Badge className={m.isActive ? getStatusColor("active") : getStatusColor("inactive")}>{m.isActive ? "Active" : "Inactive"}</Badge></td>
-                    <td className="py-3 px-4 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => openModelDialog(m)}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteModel(m._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent></Card>
+          <div className="bg-card rounded-lg border border-border">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="text-left py-3 px-4 font-medium">Name</th>
+                  <th className="text-left py-3 px-4 font-medium">Brand</th>
+                  <th className="text-left py-3 px-4 font-medium">Type</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-right py-3 px-4 font-medium">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {models.map((m) => (
+                    <tr key={m._id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                      <td className="py-3 px-4 font-medium">{m.name}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{m.brand?.name || "—"}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{m.vehicleType}</td>
+                      <td className="py-3 px-4"><Badge variant={statusBadgeVariant(m.isActive ? "active" : "inactive")}>{m.isActive ? "Active" : "Inactive"}</Badge></td>
+                      <td className="py-3 px-4 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => openModelDialog(m)}><Pencil className="h-3 w-3" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteModel(m._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="variants" className="mt-4">
           <div className="flex justify-end mb-4">
             <Button onClick={() => openVariantDialog()}><Plus className="h-4 w-4 mr-1" /> Add Variant</Button>
           </div>
-          <Card><CardContent className="p-0">
+          <div className="bg-card rounded-lg border border-border">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b bg-gray-50">
+                <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Name</th>
                   <th className="text-left py-3 px-4 font-medium">Model</th>
                   <th className="text-left py-3 px-4 font-medium">Years</th>
@@ -198,13 +224,13 @@ export default function AdminVehiclesPage() {
                 </tr></thead>
                 <tbody>
                   {variants.map((v) => (
-                    <tr key={v._id} className="border-b last:border-0 hover:bg-gray-50">
+                    <tr key={v._id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="py-3 px-4 font-medium">{v.name}</td>
                       <td className="py-3 px-4 text-muted-foreground">{v.vehicleModel?.name || "—"}</td>
                       <td className="py-3 px-4 text-muted-foreground">{v.yearFrom} - {v.yearTo}</td>
                       <td className="py-3 px-4 text-muted-foreground">{v.engineType}{v.engineCC ? ` ${v.engineCC}cc` : ""}</td>
                       <td className="py-3 px-4 text-muted-foreground capitalize">{v.fuelType}</td>
-                      <td className="py-3 px-4"><Badge className={v.isActive ? getStatusColor("active") : getStatusColor("inactive")}>{v.isActive ? "Active" : "Inactive"}</Badge></td>
+                      <td className="py-3 px-4"><Badge variant={statusBadgeVariant(v.isActive ? "active" : "inactive")}>{v.isActive ? "Active" : "Inactive"}</Badge></td>
                       <td className="py-3 px-4 text-right">
                         <Button size="sm" variant="ghost" onClick={() => openVariantDialog(v)}><Pencil className="h-3 w-3" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDeleteVariant(v._id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
@@ -214,7 +240,7 @@ export default function AdminVehiclesPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent></Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -275,15 +301,15 @@ export default function AdminVehiclesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><Label>Year From</Label><Input type="number" value={variantForm.yearFrom} onChange={(e) => setVariantForm({ ...variantForm, yearFrom: e.target.value })} /></div>
                   <div><Label>Year To</Label><Input type="number" value={variantForm.yearTo} onChange={(e) => setVariantForm({ ...variantForm, yearTo: e.target.value })} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><Label>Engine Type</Label><Input value={variantForm.engineType} onChange={(e) => setVariantForm({ ...variantForm, engineType: e.target.value })} placeholder="e.g. Inline-4" /></div>
                   <div><Label>Engine CC</Label><Input type="number" value={variantForm.engineCC} onChange={(e) => setVariantForm({ ...variantForm, engineCC: e.target.value })} placeholder="e.g. 1500" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div><Label>Fuel Type</Label>
                     <Select value={variantForm.fuelType || "__none"} onValueChange={(v) => setVariantForm({ ...variantForm, fuelType: v === "__none" ? "" : v })}>
                       <SelectTrigger><SelectValue placeholder="Select fuel" /></SelectTrigger>

@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Search, Check, X as XIcon, Eye, Ban, CheckCircle, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { thumbUrl } from "@/lib/images";
+import { Search, Check, X as XIcon, Eye, Ban, CheckCircle, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { formatPrice, formatDate, getStatusColor } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,61 +12,113 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case "active":
+    case "delivered":
+    case "paid":
+    case "confirmed":
+      return "success";
+    case "pending":
+    case "processing":
+    case "shipped":
+    case "refunded":
+      return "warning";
+    case "cancelled":
+    case "failed":
+    case "returned":
+      return "destructive";
+    case "inactive":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(""); // responsive input value
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // what the fetch uses
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqRef = useRef(0); // stale-response guard
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  useEffect(() => { loadProducts(); }, [page, statusFilter, search]);
+  useEffect(() => { loadProducts(); }, [page, statusFilter, debouncedSearch]);
+
+  /* Debounced (300ms) search: typing stays instant, the fetch only runs when
+     the user pauses — and the page resets to 1 with the new term. */
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
 
   const loadProducts = async () => {
+    const seq = ++seqRef.current;
+    setLoading(true);
     try {
-      setLoading(true);
       const params: any = { page: String(page), limit: "20" };
       if (statusFilter) params.status = statusFilter;
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getAdminProducts(params);
+      if (seq !== seqRef.current) return; // stale response — ignore out-of-order replies
       setProducts(data.products || []);
       setPagination(data.pagination);
-    } catch (err: any) { toast.error(err.message); }
-    setLoading(false);
+    } catch (err: any) {
+      if (seq === seqRef.current) toast.error(err.message);
+    } finally {
+      if (seq === seqRef.current) setLoading(false);
+    }
   };
 
   const handleApprove = async (id: string) => {
+    setBusyId(id); setBusyAction("approve");
     try { await api.approveProduct(id); toast.success("Product approved"); loadProducts(); }
     catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   const handleReject = async (id: string) => {
+    setBusyId(id); setBusyAction("reject");
     try { await api.rejectProduct(id); toast.success("Product rejected"); loadProducts(); }
     catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   const handleToggle = async (id: string) => {
+    setBusyId(id); setBusyAction("toggle");
     try { await api.toggleProduct(id); toast.success("Product status updated"); loadProducts(); }
     catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Deactivate this product?")) return;
+    setBusyId(id); setBusyAction("delete");
     try { await api.deleteAdminProduct(id); toast.success("Product deactivated"); loadProducts(); }
     catch (err: any) { toast.error(err.message); }
+    finally { setBusyId(null); setBusyAction(null); }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Products Management</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Products Management</h1>
         <Badge variant="outline">{pagination?.total || 0} products</Badge>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, SKU, or brand..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input placeholder="Search by name, SKU, or brand..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter || "__all"} onValueChange={(v) => { setStatusFilter(v === "__all" ? "" : v); setPage(1); }}>
           <SelectTrigger className="w-40"><SelectValue placeholder="All Status" /></SelectTrigger>
@@ -78,12 +131,11 @@ export default function AdminProductsPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      <div className="bg-card rounded-lg border border-border">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Product</th>
                   <th className="text-left py-3 px-4 font-medium">Price</th>
                   <th className="text-left py-3 px-4 font-medium">Stock</th>
@@ -94,12 +146,12 @@ export default function AdminProductsPage() {
               </thead>
               <tbody>
                 {products.map((p) => (
-                  <tr key={p._id} className="border-b last:border-0 hover:bg-gray-50">
+                  <tr key={p._id} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 rounded overflow-hidden shrink-0">
+                        <div className="w-10 h-10 bg-muted rounded overflow-hidden shrink-0">
                           {p.images?.[0]?.url ? (
-                            <img src={p.images[0].url} alt="" className="w-full h-full object-cover" />
+                            <img src={thumbUrl(p.images[0].url, 96)} alt="" loading="lazy" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xs">📦</div>
                           )}
@@ -115,50 +167,61 @@ export default function AdminProductsPage() {
                       {p.mrp > p.price && <p className="text-xs text-muted-foreground line-through">{formatPrice(p.mrp)}</p>}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`font-medium ${p.stock <= 5 ? "text-red-600" : ""}`}>{p.stock}</span>
+                      <span className={`font-medium ${p.stock <= 5 ? "text-destructive" : ""}`}>{p.stock}</span>
                     </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground">{p.seller?.name || "—"}</td>
                     <td className="py-3 px-4">
                       <div className="flex flex-col gap-1">
-                        <Badge className={p.isApproved ? getStatusColor("active") : getStatusColor("pending")} variant="outline">
+                        <Badge variant={statusBadgeVariant(p.isApproved ? "active" : "pending")}>
                           {p.isApproved ? "Approved" : "Pending"}
                         </Badge>
-                        {!p.isActive && <Badge className={getStatusColor("inactive")} variant="outline">Inactive</Badge>}
+                        {!p.isActive && <Badge variant="secondary">Inactive</Badge>}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {!p.isApproved && p.isActive && (
                           <>
-                            <Button size="sm" variant="ghost" onClick={() => handleApprove(p._id)} title="Approve">
-                              <Check className="h-4 w-4 text-green-600" />
+                            <Button size="sm" variant="ghost" onClick={() => handleApprove(p._id)} title="Approve" disabled={busyId === p._id}>
+                              {busyId === p._id && busyAction === "approve"
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Check className="h-4 w-4 text-success" />}
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleReject(p._id)} title="Reject">
-                              <XIcon className="h-4 w-4 text-red-600" />
+                            <Button size="sm" variant="ghost" onClick={() => handleReject(p._id)} title="Reject" disabled={busyId === p._id}>
+                              {busyId === p._id && busyAction === "reject"
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <XIcon className="h-4 w-4 text-destructive" />}
                             </Button>
                           </>
                         )}
                         <Link href={`/products/${p.slug}`}>
-                          <Button size="sm" variant="ghost" title="View"><Eye className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" title="View"><Eye className="h-4 w-4 text-muted-foreground" /></Button>
                         </Link>
-                        <Button size="sm" variant="ghost" onClick={() => handleToggle(p._id)} title="Toggle active">
-                          {p.isActive ? <Ban className="h-4 w-4 text-orange-500" /> : <CheckCircle className="h-4 w-4 text-green-500" />}
+                        <Button size="sm" variant="ghost" onClick={() => handleToggle(p._id)} title="Toggle active" disabled={busyId === p._id}>
+                          {busyId === p._id && busyAction === "toggle" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : p.isActive ? (
+                            <Ban className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-success" />
+                          )}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(p._id)} title="Delete">
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(p._id)} title="Delete" disabled={busyId === p._id}>
+                          {busyId === p._id && busyAction === "delete"
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Trash2 className="h-4 w-4 text-destructive" />}
                         </Button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {products.length === 0 && (
-                  <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No products found</td></tr>
+                  <tr><td colSpan={6} className="py-12 text-center text-muted-foreground bg-muted">No products found</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
