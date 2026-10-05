@@ -121,6 +121,7 @@ router.get('/products', asyncHandler(async (req: AuthRequest, res: Response) => 
   if (status === 'active') filter.isActive = true;
   else if (status === 'inactive') filter.isActive = false;
   else if (status === 'pending') { filter.isApproved = false; filter.isActive = true; }
+  else if (status === 'low-stock') filter.stock = { $lte: 5 };
   if (search) {
     const term = escapeRegex(String(search));
     filter.$or = [

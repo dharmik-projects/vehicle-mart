@@ -7,14 +7,11 @@ import {
   Package,
   ShoppingCart,
   RotateCcw,
-  Star,
-  Users,
-  Tag,
   CreditCard,
   BarChart3,
-  Store,
-  Bell,
+  Boxes,
   Settings,
+  Store,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -23,18 +20,17 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 
+// Seller panel navigation — selling & managing THIS seller's own products only.
+// (Customers, reviews, coupons, notifications and store pages were removed:
+//  they are admin/marketing features, not seller operations.)
 const navItems = [
   { href: "/seller", label: "Dashboard", icon: LayoutDashboard },
   { href: "/seller/products", label: "Products", icon: Package },
+  { href: "/seller/inventory", label: "Inventory", icon: Boxes },
   { href: "/seller/orders", label: "Orders", icon: ShoppingCart },
   { href: "/seller/returns", label: "Returns", icon: RotateCcw },
-  { href: "/seller/reviews", label: "Reviews", icon: Star },
-  { href: "/seller/customers", label: "Customers", icon: Users },
-  { href: "/seller/coupons", label: "Coupons", icon: Tag },
   { href: "/seller/payouts", label: "Payouts", icon: CreditCard },
   { href: "/seller/reports", label: "Reports", icon: BarChart3 },
-  { href: "/seller/store", label: "Store", icon: Store },
-  { href: "/seller/notifications", label: "Notifications", icon: Bell },
   { href: "/seller/settings", label: "Settings", icon: Settings },
 ];
 

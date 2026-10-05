@@ -238,9 +238,9 @@ export default function SellerOverview() {
           </div>
 
           {/* Monthly Sales */}
-          {stats?.monthlySales && stats.monthlySales.length > 0 && (
-            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Sales</h3>
+          <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Sales</h3>
+            {stats?.monthlySales && stats.monthlySales.length > 0 ? (
               <div className="flex items-end gap-1.5 sm:gap-2 h-40">
                 {stats.monthlySales.map((m: any, i: number) => {
                   const maxRevenue = Math.max(...stats.monthlySales.map((s: any) => s.revenue));
@@ -260,8 +260,10 @@ export default function SellerOverview() {
                   );
                 })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No data available yet</p>
+            )}
+          </div>
         </>
       )}
     </div>

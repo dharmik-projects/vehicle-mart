@@ -104,6 +104,104 @@ router.get('/dashboard', asyncHandler(async (_req: AuthRequest, res: Response) =
   });
 }));
 
+// ==================== REPORTS ====================
+// Platform-wide analytics for the admin Reports page. Everything below is a
+// real MongoDB aggregation over real orders/users/products — no sample data.
+
+router.get('/reports', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const days = Math.min(Math.max(parseInt(String(req.query.period || '30'), 10) || 30, 1), 365);
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  // Collected revenue on live orders only (same rule as the dashboard).
+  const reportMatch = { paymentStatus: 'paid', orderStatus: { $nin: ['cancelled', 'returned'] }, createdAt: { $gte: startDate } };
+
+  const [
+    summaryUsers, summarySellers, summaryProducts,
+    salesByDay, topProducts, topCategories, topSellers,
+    orderStatusDist, usersByMonth,
+  ] = await Promise.all([
+    User.countDocuments({ role: 'user' }),
+    User.countDocuments({ role: 'seller' }),
+    Product.countDocuments({ isActive: true, isApproved: true }),
+    // Revenue / orders / units per day over the period.
+    Order.aggregate([
+      { $match: reportMatch },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        revenue: { $sum: '$total' },
+        orders: { $sum: 1 },
+        units: { $sum: { $sum: '$items.quantity' } },
+      } },
+      { $sort: { _id: 1 } },
+    ]),
+    // Best-selling products over the period.
+    Order.aggregate([
+      { $match: reportMatch },
+      { $unwind: '$items' },
+      { $group: {
+        _id: '$items.product',
+        revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        units: { $sum: '$items.quantity' },
+      } },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+      { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
+      { $project: { revenue: 1, units: 1, name: { $ifNull: [{ $arrayElemAt: ['$product.name', 0] }, 'Product'] } } },
+    ]),
+    // Revenue per category over the period (via each item's product).
+    Order.aggregate([
+      { $match: reportMatch },
+      { $unwind: '$items' },
+      { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'categories', localField: 'product.category', foreignField: '_id', as: 'category' } },
+      { $group: {
+        _id: { $ifNull: [{ $arrayElemAt: ['$category.name', 0] }, 'Uncategorized'] },
+        revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        units: { $sum: '$items.quantity' },
+      } },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+    ]),
+    // Seller performance over the period.
+    Order.aggregate([
+      { $match: reportMatch },
+      { $unwind: '$items' },
+      { $group: {
+        _id: '$items.seller',
+        revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        units: { $sum: '$items.quantity' },
+      } },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+      { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'seller' } },
+      { $project: { revenue: 1, units: 1, name: { $ifNull: [{ $arrayElemAt: ['$seller.name', 0] }, 'Seller'] } } },
+    ]),
+    // All-time order status distribution (for the donut).
+    Order.aggregate([
+      { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]),
+    // New signups per month for the growth chart (last 6 months).
+    User.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, users: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]),
+  ]);
+
+  res.json({
+    period: days,
+    summary: { totalUsers: summaryUsers, totalSellers: summarySellers, activeProducts: summaryProducts },
+    salesByDay, topProducts, topCategories, topSellers,
+    ordersByStatus: orderStatusDist, usersByMonth,
+  });
+}));
+
 // ==================== USER MANAGEMENT ====================
 
 router.get('/users', asyncHandler(async (req: AuthRequest, res: Response) => {

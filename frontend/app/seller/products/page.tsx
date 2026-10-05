@@ -92,6 +92,12 @@ export default function SellerProducts() {
     loadProducts();
   }, [user, router, page, statusFilter, debouncedSearch]);
 
+  // Deep links like /seller/products?status=low-stock (from dashboard alerts).
+  useEffect(() => {
+    const preset = new URLSearchParams(window.location.search).get("status");
+    if (preset === "low-stock") setStatusFilter("low-stock");
+  }, []);
+
   /* Reference data (categories, vehicle makes) loads once per mount through
      the shared client cache — same key naming as the shop's /products page —
      so paging and filtering never re-request it. */
@@ -453,6 +459,7 @@ export default function SellerProducts() {
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="low-stock">Low Stock</SelectItem>
           </SelectContent>
         </Select>
       </div>

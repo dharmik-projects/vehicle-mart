@@ -244,36 +244,6 @@ class ApiClient {
   approveSellerReturn = (id: string) => this.fetch(`/seller/returns/${id}/approve`, { method: 'PUT' });
   rejectSellerReturn = (id: string, reason?: string) => this.fetch(`/seller/returns/${id}/reject`, { method: 'PUT', body: { reason } });
 
-  // Seller - Reviews
-  getSellerReviews = (params?: any) => {
-    const q = new URLSearchParams(params).toString();
-    return this.fetch(`/seller/reviews${q ? `?${q}` : ''}`);
-  };
-  markReviewHelpful = (id: string) => this.fetch(`/seller/reviews/${id}/helpful`, { method: 'PUT' });
-
-  // Seller - Customers
-  getSellerCustomers = (params?: any) => {
-    const q = new URLSearchParams(params).toString();
-    return this.fetch(`/seller/customers${q ? `?${q}` : ''}`);
-  };
-
-  // Seller - Coupons
-  getSellerCoupons = (params?: any) => {
-    const q = new URLSearchParams(params).toString();
-    return this.fetch(`/seller/coupons${q ? `?${q}` : ''}`);
-  };
-  createSellerCoupon = (data: any) => this.fetch('/seller/coupons', { method: 'POST', body: data });
-  updateSellerCoupon = (id: string, data: any) => this.fetch(`/seller/coupons/${id}`, { method: 'PUT', body: data });
-  deleteSellerCoupon = (id: string) => this.fetch(`/seller/coupons/${id}`, { method: 'DELETE' });
-
-  // Seller - Notifications
-  getSellerNotifications = (params?: any) => {
-    const q = new URLSearchParams(params).toString();
-    return this.fetch(`/seller/notifications${q ? `?${q}` : ''}`);
-  };
-  markSellerNotificationRead = (id: string) => this.fetch(`/seller/notifications/${id}/read`, { method: 'PUT' });
-  markAllSellerNotificationsRead = () => this.fetch('/seller/notifications/read-all', { method: 'PUT' });
-
   // Seller - Store / Profile
   getSellerStore = () => this.fetch('/seller/store');
   updateSellerStore = (data: any) => this.fetch('/seller/store', { method: 'PUT', body: data });
@@ -288,6 +258,7 @@ class ApiClient {
 
   // Admin - Dashboard
   getAdminDashboard = () => this.fetch('/admin/dashboard');
+  getAdminReports = (period: string) => this.fetch(`/admin/reports?period=${encodeURIComponent(period)}`);
 
   // Admin - Users
   getAdminUsers = (params?: any) => {

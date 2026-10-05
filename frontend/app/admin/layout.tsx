@@ -37,6 +37,7 @@ const navItems = [
   { href: "/admin/inventory", label: "Inventory", icon: Boxes },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

@@ -17,6 +17,7 @@ import {
   Package,
   Settings,
   ArrowRight,
+  BarChart3,
 } from "lucide-react";
 import { useAuthStore, useCartStore } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -305,7 +306,7 @@ export default function Header() {
       { href: "/seller", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
       { href: "/seller/products", label: "Products", icon: <Package className="h-4 w-4" /> },
       { href: "/seller/orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
-      { href: "/seller/store", label: "Store", icon: <Store className="h-4 w-4" /> },
+      { href: "/seller/reports", label: "Reports", icon: <BarChart3 className="h-4 w-4" /> },
     ];
 
     return (

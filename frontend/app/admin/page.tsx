@@ -12,6 +12,11 @@ import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrendChart, type TrendPoint } from "@/components/charts/TrendChart";
+import { DonutChart } from "@/components/charts/DonutChart";
+import { statusColor } from "@/components/charts/statusColors";
+
+const monthNames = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function statusBadgeVariant(status: string) {
   switch (status) {
@@ -101,10 +106,18 @@ export default function AdminOverview() {
         <div className="bg-card rounded-lg border border-border p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Revenue</h3>
           {stats.monthlyRevenue?.length > 0 ? (
-            <div className="space-y-2.5">
-              {stats.monthlyRevenue.map((m: any) => {
-                const monthNames = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                return (
+            <>
+              <TrendChart
+                points={stats.monthlyRevenue.map((m: any): TrendPoint => ({
+                  label: `${monthNames[m._id?.month || 1]} ${String(m._id?.year || "").slice(2)}`,
+                  value: Number(m.revenue) || 0,
+                  tip: `${formatPrice(m.revenue)} · ${m.orders} order${m.orders === 1 ? "" : "s"}`,
+                }))}
+                valueFormat={formatPrice}
+                height={170}
+              />
+              <div className="mt-3 space-y-2.5">
+                {stats.monthlyRevenue.map((m: any) => (
                   <div key={`${m._id.year}-${m._id.month}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                     <span className="text-foreground">{monthNames[m._id.month]} {m._id.year}</span>
                     <div className="flex items-center gap-3 sm:gap-4 ml-auto">
@@ -112,11 +125,11 @@ export default function AdminOverview() {
                       <span className="font-medium text-foreground tabular-nums">{formatPrice(m.revenue)}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">No revenue data yet</p>
+            <p className="text-sm text-muted-foreground">No data available yet</p>
           )}
         </div>
 
@@ -124,16 +137,17 @@ export default function AdminOverview() {
         <div className="bg-card rounded-lg border border-border p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Orders by Status</h3>
           {stats.ordersByStatus?.length > 0 ? (
-            <div className="space-y-2.5">
-              {stats.ordersByStatus.map((s: any) => (
-                <div key={s._id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <Badge variant={statusBadgeVariant(s._id)} className="text-xs">{s._id}</Badge>
-                  <span className="font-medium text-foreground">{s.count}</span>
-                </div>
-              ))}
-            </div>
+            <DonutChart
+              segments={stats.ordersByStatus.map((s: any) => ({
+                label: s._id,
+                value: Number(s.count) || 0,
+                color: statusColor(s._id),
+              }))}
+              centerValue={String(stats.ordersByStatus.reduce((sum: number, s: any) => sum + (Number(s.count) || 0), 0))}
+              centerLabel="orders"
+            />
           ) : (
-            <p className="text-sm text-muted-foreground">No orders yet</p>
+            <p className="text-sm text-muted-foreground">No data available yet</p>
           )}
         </div>
 
