@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, FolderTree } from "lucide-react";
 import { api } from "@/lib/api";
+import { emojiIcon } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,7 +123,7 @@ export default function AdminCategoriesPage() {
               <tbody>
                 {categories.map((cat) => (
                   <tr key={cat._id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                    <td className="py-3 px-4 text-lg">{cat.icon || "—"}</td>
+                    <td className="py-3 px-4 text-lg">{emojiIcon(cat.icon) || "—"}</td>
                     <td className="py-3 px-4 font-medium">{cat.name}</td>
                     <td className="py-3 px-4 text-muted-foreground">{cat.parent?.name || "—"}</td>
                     <td className="py-3 px-4">
@@ -150,7 +151,7 @@ export default function AdminCategoriesPage() {
         {categories.map((cat) => (
           <div key={cat._id} className="bg-card rounded-lg border border-border p-4 space-y-3">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-lg shrink-0">{cat.icon || "—"}</span>
+              <span className="text-lg shrink-0">{emojiIcon(cat.icon) || "—"}</span>
               <span className="font-semibold text-foreground truncate">{cat.name}</span>
             </div>
             <div className="space-y-1.5 text-sm">
@@ -211,7 +212,10 @@ export default function AdminCategoriesPage() {
                 <SelectContent>
                   <SelectItem value="__none">None (top-level)</SelectItem>
                   {categories.filter((c) => c.isActive && c._id !== editing?._id).map((c) => (
-                    <SelectItem key={c._id} value={c._id}>{c.icon ? `${c.icon} ` : ""}{c.name}</SelectItem>
+                    <SelectItem key={c._id} value={c._id}>
+                      {emojiIcon(c.icon) ? `${emojiIcon(c.icon)} ` : ""}
+                      {c.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

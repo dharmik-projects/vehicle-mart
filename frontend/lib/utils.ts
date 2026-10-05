@@ -62,3 +62,23 @@ export function generateStars(rating: number): string[] {
   while (stars.length < 5) stars.push('empty');
   return stars;
 }
+
+/**
+ * Category icons are emoji stored in MongoDB. Older records may hold broken
+ * placeholder text ("?", "??", "???") from a lossy write — only surface the
+ * value when it actually contains a pictographic character so callers can
+ * fall back to their default glyph instead of rendering garbage.
+ */
+export function emojiIcon(value?: string | null): string {
+  const s = (value || '').trim();
+  if (!s) return '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    // Astral plane (surrogate pair) — most pictographic emoji live there.
+    if (c >= 0xd800 && c <= 0xdfff) return s;
+    // BMP symbol blocks: arrows, geometric/symbol shapes, misc symbols
+    // (⚙ U+2699, ⛽ U+26FD, ❄ U+2744, ⇥ …) — never ASCII "?" placeholders.
+    if (c >= 0x2190 && c <= 0x2bff) return s;
+  }
+  return '';
+}

@@ -93,7 +93,7 @@ export default function SellerProducts() {
   }, [user, router, page, statusFilter, debouncedSearch]);
 
   /* Reference data (categories, vehicle makes) loads once per mount through
-     the shared client cache â€” same key naming as the shop's /products page â€”
+     the shared client cache — same key naming as the shop's /products page —
      so paging and filtering never re-request it. */
   useEffect(() => {
     if (!user || (user.role !== "seller" && user.role !== "admin")) return;
@@ -118,7 +118,7 @@ export default function SellerProducts() {
       if (statusFilter !== "all") params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getSellerProducts(params);
-      if (seq !== seqRef.current) return; // stale response â€” ignore out-of-order replies
+      if (seq !== seqRef.current) return; // stale response — ignore out-of-order replies
       setProducts(data.products || []);
       setPagination(data.pagination);
     } catch (err) { console.error(err); }
@@ -129,7 +129,7 @@ export default function SellerProducts() {
     try {
       const data = await cached("categoriesFlat", () => api.getCategoriesFlat());
       const list: any[] = data.categories || [];
-      // Flat endpoint â†’ ordered main-then-its-children so the dropdown is a
+      // Flat endpoint → ordered main-then-its-children so the dropdown is a
       // browsable tree (sortOrders repeat across parents, so raw sort would jumble).
       const byOrder = (a: any, b: any) =>
         (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || String(a.name).localeCompare(String(b.name));
@@ -347,7 +347,7 @@ export default function SellerProducts() {
       }
 
       // Image upload and compatibility are independent of each other (both only
-      // need the product id) â€” run them in parallel instead of sequentially.
+      // need the product id) — run them in parallel instead of sequentially.
       const compatPromise = api.updateSellerProductCompatibility(productId, compatPayload);
       const uploadPromise: Promise<any> =
         imageFiles.length > 0 && productId
@@ -467,10 +467,10 @@ export default function SellerProducts() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {products.map((p) => (
-              <Card key={p._id} className="overflow-hidden">
-                <div className="relative h-40 bg-muted">
+              <Card key={p._id} className="group overflow-hidden shadow-[var(--shadow-1)] transition-shadow hover:shadow-[var(--shadow-2)]">
+                <div className="relative h-44 bg-muted/40">
                   {p.images && p.images.length > 0 ? (
-                    <img src={thumbUrl(p.images[0].url, 160)} alt={p.name} loading="lazy" className="w-full h-full object-cover" />
+                    <img src={thumbUrl(p.images[0].url, 480)} alt={p.name} loading="lazy" className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                       <Package className="h-12 w-12" />
@@ -489,7 +489,7 @@ export default function SellerProducts() {
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-sm line-clamp-1 mb-1">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-1 truncate">{p.brand} â€¢ {p.category?.name || "N/A"}</p>
+                  <p className="text-xs text-muted-foreground mb-1 truncate">{p.brand} • {p.category?.name || "N/A"}</p>
                   {p._compat && p._compat.length > 0 && (
                     <div className="flex items-center gap-1 mb-2 min-w-0">
                       {p._compat.some((c: any) => c.isUniversal) ? (
@@ -623,7 +623,7 @@ export default function SellerProducts() {
                     <SelectContent>
                       {categories.map((c: any) => (
                         <SelectItem key={c._id} value={c._id}>
-                          {c.parent ? `${c.parent.name} â€º ${c.name}` : c.name}
+                          {c.parent ? `${c.parent.name} › ${c.name}` : c.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -635,8 +635,8 @@ export default function SellerProducts() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Pricing &amp; Inventory</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div><Label>Selling Price (â‚¹) *</Label><Input type="number" required min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-                <div><Label>MRP (â‚¹) *</Label><Input type="number" required min="0" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} /></div>
+                <div><Label>Selling Price (₹) *</Label><Input type="number" required min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
+                <div><Label>MRP (₹) *</Label><Input type="number" required min="0" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} /></div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

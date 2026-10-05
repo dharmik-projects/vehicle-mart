@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { thumbUrl } from "@/lib/images";
+import { emojiIcon } from "@/lib/utils";
 
 /**
  * Single-row horizontal category carousel.
@@ -87,9 +88,9 @@ export default function CategoryCarousel({ categories }: { categories: any[] }) 
                   loading="lazy"
                   className="h-12 w-12 rounded-xl object-cover sm:h-14 sm:w-14"
                 />
-              ) : cat.icon ? (
+              ) : emojiIcon(cat.icon) ? (
                 <span className="text-2xl leading-none" aria-hidden>
-                  {cat.icon}
+                  {emojiIcon(cat.icon)}
                 </span>
               ) : (
                 <Package className="h-6 w-6" />

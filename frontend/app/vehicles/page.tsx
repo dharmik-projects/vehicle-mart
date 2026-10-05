@@ -10,16 +10,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/* Vehicle types offered by the picker â€” same list the type selector always offered */
+/* Vehicle types offered by the picker — same list the type selector always offered */
 const VEHICLE_TYPE_OPTIONS = [
   { value: "", label: "All Types" },
-  { value: "2-wheeler", label: "ðŸï¸ 2-Wheeler" },
-  { value: "car", label: "ðŸš— Car" },
-  { value: "truck", label: "ðŸš› Truck" },
-  { value: "tractor", label: "ðŸšœ Tractor" },
-  { value: "ev", label: "âš¡ EV" },
-  { value: "three-wheeler", label: "ðŸ›º Three-Wheeler" },
-  { value: "bus", label: "ðŸšŒ Bus" },
+  { value: "2-wheeler", label: "🏍️ 2-Wheeler" },
+  { value: "car", label: "🚗 Car" },
+  { value: "truck", label: "🚛 Truck" },
+  { value: "tractor", label: "🚜 Tractor" },
+  { value: "ev", label: "⚡ EV" },
+  { value: "three-wheeler", label: "🛺 Three-Wheeler" },
+  { value: "bus", label: "🚌 Bus" },
 ];
 
 /* Tappable option-card grid shared by the brand and model pickers */
@@ -51,7 +51,7 @@ export default function VehiclesPage() {
   const loadBrands = async () => {
     setLoading(true);
     try {
-      // Shared cache with the homepage VehicleSelector (same keys) â€” revisit is instant
+      // Shared cache with the homepage VehicleSelector (same keys) — revisit is instant
       const data = await cached(`vbrands:${vehicleType || '__all'}`, () =>
         api.getBrands(vehicleType || undefined)
       );
@@ -99,7 +99,7 @@ export default function VehiclesPage() {
 
         <Card className="rounded-lg">
           <CardContent className="space-y-5 p-4 sm:p-6">
-            {/* Vehicle Type â€” chips wrap on phones so nothing overflows */}
+            {/* Vehicle Type — chips wrap on phones so nothing overflows */}
             <div>
               <span className={labelClass}>Vehicle Type</span>
               <div className="flex flex-wrap gap-2">
@@ -120,7 +120,7 @@ export default function VehiclesPage() {
               </div>
             </div>
 
-            {/* Brand â€” tappable cards (â‰¥44px) */}
+            {/* Brand — tappable cards (≥44px) */}
             <div>
               <span className={labelClass}>Brand</span>
               {loading && brands.length === 0 ? (
@@ -149,7 +149,7 @@ export default function VehiclesPage() {
               )}
             </div>
 
-            {/* Model â€” tappable cards (â‰¥44px) */}
+            {/* Model — tappable cards (≥44px) */}
             <div>
               <span className={labelClass}>Model</span>
               {!selectedBrand ? (

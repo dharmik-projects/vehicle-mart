@@ -31,7 +31,7 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  /* Direct loads / refreshes of /checkout hit an empty store â€” only redirect
+  /* Direct loads / refreshes of /checkout hit an empty store — only redirect
      to /cart AFTER the cart has actually been hydrated from the API. */
   const [cartChecked, setCartChecked] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
@@ -46,7 +46,7 @@ export default function CheckoutPage() {
   const userId = user?.id;
 
   useEffect(() => {
-    if (authLoading) return; // wait for auth resolution â€” never bounce to /login mid-flight
+    if (authLoading) return; // wait for auth resolution — never bounce to /login mid-flight
     if (!user) { router.push('/login'); }
   }, [user, authLoading, router]);
 
@@ -64,7 +64,7 @@ export default function CheckoutPage() {
     if (items.length === 0) router.push('/cart');
   }, [cartChecked, processing, items, router]);
 
-  /* Addresses are fetched ONCE as soon as the user is known â€” independent of
+  /* Addresses are fetched ONCE as soon as the user is known — independent of
      cart items, so an items change (or a cart reload) can never re-trigger it.
      The `alive` guard drops the response if the user changes meanwhile. */
   useEffect(() => {
@@ -203,9 +203,9 @@ export default function CheckoutPage() {
       {/* Steps indicator */}
       <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
         <span className="font-semibold text-foreground">Cart</span>
-        <span className="text-muted-foreground/70">â†’</span>
+        <span className="text-muted-foreground/70">→</span>
         <span className="font-semibold text-foreground">Checkout</span>
-        <span className="text-muted-foreground/70">â†’</span>
+        <span className="text-muted-foreground/70">→</span>
         <span className="text-muted-foreground">Confirmation</span>
       </div>
 
@@ -239,7 +239,7 @@ export default function CheckoutPage() {
                           <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{addr.label}</span>
                           {selectedAddress?._id === addr._id && <Check className="h-4 w-4 shrink-0 text-primary" />}
                         </div>
-                        <p className="mt-1 break-words text-sm font-medium text-foreground">{addr.fullName} â€¢ {addr.phone}</p>
+                        <p className="mt-1 break-words text-sm font-medium text-foreground">{addr.fullName} • {addr.phone}</p>
                         <p className="break-words text-xs text-muted-foreground">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
                         <p className="break-words text-xs text-muted-foreground">{addr.city}, {addr.state} - {addr.pincode}</p>
                       </div>
@@ -327,7 +327,7 @@ export default function CheckoutPage() {
                       {product.images?.[0]?.url ? (
                         <img src={thumbUrl(product.images[0].url, 160)} alt="" loading="lazy" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">ðŸ“¦</div>
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">📦</div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -430,7 +430,7 @@ export default function CheckoutPage() {
             </div>
             <Button type="submit" className={`w-full ${primaryBtnClass}`} disabled={savingAddress}>
               {savingAddress ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Savingâ€¦</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
               ) : (
                 'Save Address'
               )}

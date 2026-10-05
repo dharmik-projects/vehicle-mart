@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { cached } from "@/lib/cache";
+import { emojiIcon } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderTree, Package } from "lucide-react";
 
@@ -50,7 +51,7 @@ export default function CategoriesPage() {
             <div key={cat._id} className="flex min-w-0 flex-col gap-2">
               <Link href={`/products?category=${cat._id}`} className="group">
                 <div className="vp-card vp-card-hover h-full p-4 text-center sm:p-5">
-                  <span className="mb-3 block text-3xl transition-transform group-hover:scale-110 sm:text-4xl">{cat.icon || "📦"}</span>
+                  <span className="mb-3 block text-3xl transition-transform group-hover:scale-110 sm:text-4xl">{emojiIcon(cat.icon) || "📦"}</span>
                   <h2 className="break-words text-[15px] font-medium text-foreground transition-colors group-hover:text-primary sm:text-base">{cat.name}</h2>
                   {cat.description && (
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{cat.description}</p>
