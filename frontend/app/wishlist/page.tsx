@@ -48,13 +48,13 @@ export default function WishlistPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 fade-in">
-      <h1 className="text-2xl font-display font-bold text-foreground mb-5">My Wishlist</h1>
+    <div className="vp-container py-6 sm:py-8 fade-in">
+      <h1 className="mb-5 text-xl font-display font-bold text-foreground sm:text-2xl">My Wishlist</h1>
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 min-[1700px]:grid-cols-5">
           {Array(5).fill(0).map((_, i) => (
-            <div key={i} className="bg-card rounded-lg border border-border p-4 flex flex-col gap-3">
-              <Skeleton className="w-full aspect-square rounded-lg shrink-0" />
+            <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:p-4">
+              <Skeleton className="aspect-square w-full shrink-0 rounded-lg" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-3 w-20" />
@@ -64,31 +64,31 @@ export default function WishlistPage() {
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 min-[1700px]:grid-cols-5">
           {items.map((item) => {
             const p = item.product;
             if (!p) return null;
             return (
-              <div key={item._id} className="bg-card rounded-lg border border-border p-4 flex flex-col gap-3 hover:shadow-soft transition-shadow">
+              <div key={item._id} className="vp-card vp-card-hover flex flex-col gap-3 p-3 sm:p-4">
                 <Link href={`/products/${p.slug}`} className="shrink-0">
-                  <div className="w-full aspect-square bg-muted rounded-lg overflow-hidden">
+                  <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted">
                     {p.images?.[0]?.url ? (
-                      <img src={thumbUrl(p.images[0].url, 300)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      <img src={thumbUrl(p.images[0].url, 300)} alt="" loading="lazy" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Package className="h-8 w-8" /></div>
+                      <div className="flex h-full w-full items-center justify-center text-muted-foreground"><Package className="h-8 w-8" /></div>
                     )}
                   </div>
                 </Link>
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <Link href={`/products/${p.slug}`} className="text-sm font-medium hover:text-primary line-clamp-2 text-foreground">{p.name}</Link>
-                  <p className="text-xs text-muted-foreground mt-0.5">{p.brand}</p>
-                  <p className="text-sm font-semibold mt-1 text-foreground">{formatPrice(p.price)}</p>
-                  <div className="flex flex-wrap items-center gap-2 mt-auto pt-3">
-                    <Button size="sm" onClick={() => handleAddToCart(p)} className="bg-primary text-primary-foreground shadow-soft hover:shadow-card flex-1">
-                      <ShoppingCart className="h-3 w-3 mr-1" /> Add
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <Link href={`/products/${p.slug}`} className="line-clamp-2 break-words text-sm font-medium text-foreground hover:text-primary">{p.name}</Link>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{p.brand}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{formatPrice(p.price)}</p>
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+                    <Button size="sm" onClick={() => handleAddToCart(p)} className="min-h-10 flex-1 bg-primary text-primary-foreground shadow-soft hover:shadow-card">
+                      <ShoppingCart className="mr-1 h-3.5 w-3.5" /> Add
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleToggle(p._id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2.5">
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <Button size="sm" variant="ghost" onClick={() => handleToggle(p._id)} aria-label="Remove from wishlist" className="flex h-10 w-10 shrink-0 items-center justify-center p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

@@ -1,5 +1,9 @@
 import { ListRowsSkeleton } from "@/components/ui/page-skeleton";
 
 export default function Loading() {
-  return <ListRowsSkeleton count={6} />;
+  return (
+    <div className="vp-main">
+      <ListRowsSkeleton count={6} />
+    </div>
+  );
 }

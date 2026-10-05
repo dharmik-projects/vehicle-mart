@@ -60,7 +60,7 @@ export default function SellerNotifications() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Notifications</h1>
@@ -69,7 +69,7 @@ export default function SellerNotifications() {
           </p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={handleMarkAllRead} className="rounded-lg w-fit"><CheckCheck className="h-4 w-4 mr-2" /> Mark All Read</Button>
+          <Button variant="outline" onClick={handleMarkAllRead} className="rounded-lg w-full sm:w-auto"><CheckCheck className="h-4 w-4 mr-2" /> Mark All Read</Button>
         )}
       </div>
 
@@ -83,13 +83,13 @@ export default function SellerNotifications() {
             {notifications.map((n) => (
               <div key={n._id} className={`rounded-lg border border-border border-l-4 p-4 ${n.isRead ? "bg-card" : "bg-muted/40"} ${getTypeBorder(n.type)}`}>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className={`text-sm ${n.isRead ? "font-medium text-muted-foreground" : "font-semibold text-foreground"}`}>{n.title}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm break-words ${n.isRead ? "font-medium text-muted-foreground" : "font-semibold text-foreground"}`}>{n.title}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5 break-words">{n.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">{formatDate(n.createdAt)}</p>
                   </div>
                   {!n.isRead && (
-                    <Button size="sm" variant="ghost" onClick={() => handleMarkRead(n._id)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                    <Button size="icon-sm" variant="ghost" aria-label="Mark as read" onClick={() => handleMarkRead(n._id)} className="min-h-10 min-w-10 shrink-0 text-muted-foreground hover:text-foreground">
                       <Check className="h-3 w-3" />
                     </Button>
                   )}
@@ -98,10 +98,10 @@ export default function SellerNotifications() {
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /><span className="sr-only">Previous page</span></Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /><span className="sr-only">Next page</span></Button>
             </div>
           )}
         </>

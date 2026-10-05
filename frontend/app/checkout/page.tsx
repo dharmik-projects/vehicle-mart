@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { thumbUrl } from "@/lib/images";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ declare global {
 export default function CheckoutPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const items = useCartStore((s) => s.items);
   const total = useCartStore((s) => s.total);
   const loadCart = useCartStore((s) => s.loadCart);
@@ -30,6 +31,9 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  /* Direct loads / refreshes of /checkout hit an empty store â€” only redirect
+     to /cart AFTER the cart has actually been hydrated from the API. */
+  const [cartChecked, setCartChecked] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const savingAddressRef = useRef(false);
@@ -42,11 +46,25 @@ export default function CheckoutPage() {
   const userId = user?.id;
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    if (items.length === 0 && !processing) { router.push('/cart'); return; }
-  }, [user, items, router, processing]);
+    if (authLoading) return; // wait for auth resolution â€” never bounce to /login mid-flight
+    if (!user) { router.push('/login'); }
+  }, [user, authLoading, router]);
 
-  /* Addresses are fetched ONCE as soon as the user is known — independent of
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    loadCart()
+      .catch(() => undefined)
+      .finally(() => { if (alive) setCartChecked(true); });
+    return () => { alive = false; };
+  }, [user, loadCart]);
+
+  useEffect(() => {
+    if (!cartChecked || processing) return;
+    if (items.length === 0) router.push('/cart');
+  }, [cartChecked, processing, items, router]);
+
+  /* Addresses are fetched ONCE as soon as the user is known â€” independent of
      cart items, so an items change (or a cart reload) can never re-trigger it.
      The `alive` guard drops the response if the user changes meanwhile. */
   useEffect(() => {
@@ -181,19 +199,19 @@ export default function CheckoutPage() {
   const primaryBtnClass = "bg-primary text-primary-foreground shadow-soft hover:shadow-card";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 fade-in">
+    <div className="vp-container py-6 sm:py-8 fade-in">
       {/* Steps indicator */}
-      <div className="flex items-center gap-2 mb-6 text-sm">
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
         <span className="font-semibold text-foreground">Cart</span>
-        <span className="text-muted-foreground/70">→</span>
+        <span className="text-muted-foreground/70">â†’</span>
         <span className="font-semibold text-foreground">Checkout</span>
-        <span className="text-muted-foreground/70">→</span>
+        <span className="text-muted-foreground/70">â†’</span>
         <span className="text-muted-foreground">Confirmation</span>
       </div>
 
-      <h1 className="text-xl sm:text-2xl font-display font-semibold text-foreground mb-6">Checkout</h1>
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-5">
+      <h1 className="mb-6 text-xl font-display font-bold text-foreground sm:text-2xl">Checkout</h1>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
           {/* Delivery Address */}
           <div className={cardClass}>
             <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
@@ -201,7 +219,7 @@ export default function CheckoutPage() {
                 <MapPin className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">Delivery Address</h2>
               </div>
-              <button onClick={() => setShowNewAddress(true)} className="text-[13px] font-medium text-primary hover:underline shrink-0">+ Add New</button>
+              <button onClick={() => setShowNewAddress(true)} className="inline-flex min-h-10 shrink-0 items-center text-[13px] font-medium text-primary hover:underline">+ Add New</button>
             </div>
             <div className="p-4 space-y-2">
               {addresses.length === 0 ? (
@@ -211,19 +229,19 @@ export default function CheckoutPage() {
                   <div
                     key={addr._id}
                     onClick={() => !isProcessing && setSelectedAddress(addr)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    className={`min-h-11 cursor-pointer rounded-lg border p-3.5 transition-all sm:p-3 ${
                       selectedAddress?._id === addr._id ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'
                     } ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md">{addr.label}</span>
-                          {selectedAddress?._id === addr._id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{addr.label}</span>
+                          {selectedAddress?._id === addr._id && <Check className="h-4 w-4 shrink-0 text-primary" />}
                         </div>
-                        <p className="text-sm font-medium mt-1 text-foreground">{addr.fullName} • {addr.phone}</p>
-                        <p className="text-xs text-muted-foreground">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
-                        <p className="text-xs text-muted-foreground">{addr.city}, {addr.state} - {addr.pincode}</p>
+                        <p className="mt-1 break-words text-sm font-medium text-foreground">{addr.fullName} â€¢ {addr.phone}</p>
+                        <p className="break-words text-xs text-muted-foreground">{addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}</p>
+                        <p className="break-words text-xs text-muted-foreground">{addr.city}, {addr.state} - {addr.pincode}</p>
                       </div>
                     </div>
                   </div>
@@ -249,7 +267,7 @@ export default function CheckoutPage() {
                 <div
                   key={method.value}
                   onClick={() => !isProcessing && setPaymentMethod(method.value)}
-                  className={`flex items-center gap-3 p-3.5 rounded-lg border cursor-pointer transition-all ${
+                  className={`flex min-h-11 items-center gap-3 rounded-lg border p-3.5 cursor-pointer transition-all ${
                     paymentMethod === method.value ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'
                   } ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
                 >
@@ -309,7 +327,7 @@ export default function CheckoutPage() {
                       {product.images?.[0]?.url ? (
                         <img src={thumbUrl(product.images[0].url, 160)} alt="" loading="lazy" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">📦</div>
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">ðŸ“¦</div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -345,7 +363,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <Button className={`w-full mt-4 ${primaryBtnClass}`} size="lg" onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddress}>
+            <Button className={`mt-4 min-h-12 w-full ${primaryBtnClass}`} size="lg" onClick={handlePlaceOrder} disabled={isProcessing || !selectedAddress}>
               {isProcessing ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
               ) : paymentMethod === 'cod' ? (
@@ -371,48 +389,48 @@ export default function CheckoutPage() {
             <DialogTitle>Add New Address</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddAddress} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div>
                 <Label className={labelClass}>Label</Label>
                 <select value={newAddress.label} onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
-                  className="w-full h-9 rounded-lg border border-input bg-card text-foreground px-3 text-sm mt-1.5">
+                  className="mt-1.5 h-11 w-full min-h-11 rounded-lg border border-input bg-card px-3 text-sm text-foreground sm:h-10">
                   <option>Home</option><option>Work</option><option>Other</option>
                 </select>
               </div>
               <div>
                 <Label className={labelClass}>Full Name</Label>
-                <Input required value={newAddress.fullName} onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })} className="mt-1.5 h-9" />
+                <Input required value={newAddress.fullName} onChange={(e) => setNewAddress({ ...newAddress, fullName: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
               </div>
             </div>
             <div>
               <Label className={labelClass}>Phone</Label>
-              <Input required value={newAddress.phone} onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })} className="mt-1.5 h-9" />
+              <Input required value={newAddress.phone} onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
             </div>
             <div>
               <Label className={labelClass}>Address Line 1</Label>
-              <Input required value={newAddress.addressLine1} onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })} className="mt-1.5 h-9" />
+              <Input required value={newAddress.addressLine1} onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
             </div>
             <div>
               <Label className={labelClass}>Address Line 2</Label>
-              <Input value={newAddress.addressLine2} onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })} className="mt-1.5 h-9" />
+              <Input value={newAddress.addressLine2} onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <Label className={labelClass}>City</Label>
-                <Input required value={newAddress.city} onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })} className="mt-1.5 h-9" />
+                <Input required value={newAddress.city} onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
               </div>
               <div>
                 <Label className={labelClass}>State</Label>
-                <Input required value={newAddress.state} onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })} className="mt-1.5 h-9" />
+                <Input required value={newAddress.state} onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
               </div>
               <div>
                 <Label className={labelClass}>Pincode</Label>
-                <Input required value={newAddress.pincode} onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })} className="mt-1.5 h-9" />
+                <Input required value={newAddress.pincode} onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })} className="mt-1.5 h-11 sm:h-10" />
               </div>
             </div>
             <Button type="submit" className={`w-full ${primaryBtnClass}`} disabled={savingAddress}>
               {savingAddress ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Savingâ€¦</>
               ) : (
                 'Save Address'
               )}

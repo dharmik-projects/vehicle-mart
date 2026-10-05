@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProductCard from "@/components/product/ProductCard";
+import RecentlyViewed from "@/components/home/RecentlyViewed";
 import toast from "react-hot-toast";
 
 function RatingBar({ star, count, total }: { star: number; count: number; total: number }) {
@@ -30,7 +31,7 @@ function RatingBar({ star, count, total }: { star: number; count: number; total:
     <div className="flex items-center gap-2 text-sm">
       <span className="w-8 text-right">{star}★</span>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-foreground/70 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-warning rounded-full transition-all" style={{ width: `${pct}%` }} />
       </div>
       <span className="w-8 text-muted-foreground text-xs">{count}</span>
     </div>
@@ -259,8 +260,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[1360px] px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
+      <div className="vp-container py-6 sm:py-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[0.9fr_1fr] lg:gap-10">
           <Skeleton className="aspect-square rounded-lg" />
           <div className="space-y-4">
             <Skeleton className="h-4 w-24" />
@@ -281,30 +282,30 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const totalReviewCount = ratingBreakdown.reduce((sum: number, r: any) => sum + r.count, 0);
 
   return (
-      <div className="mx-auto w-full max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8 fade-in">
+      <div className="vp-container py-6 pb-28 sm:py-8 sm:pb-28 lg:pb-0 fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-5 flex-wrap">
-        <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
+      <div className="mb-5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+        <Link href="/" className="inline-flex min-h-9 items-center transition-colors hover:text-foreground">Home</Link>
         <ChevronRight className="h-3 w-3 shrink-0" />
-        <Link href="/products" className="hover:text-foreground transition-colors">Products</Link>
+        <Link href="/products" className="inline-flex min-h-9 items-center transition-colors hover:text-foreground">Products</Link>
         <ChevronRight className="h-3 w-3 shrink-0" />
         {product.category && (
           <>
-            <Link href={`/products?category=${product.category._id}`} className="hover:text-foreground transition-colors">
+            <Link href={`/products?category=${product.category._id}`} className="inline-flex min-h-9 items-center transition-colors hover:text-foreground">
               {product.category.name}
             </Link>
             <ChevronRight className="h-3 w-3 shrink-0" />
           </>
         )}
-        <span className="text-foreground truncate">{product.name}</span>
+        <span className="min-w-0 max-w-full truncate text-foreground">{product.name}</span>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[0.9fr_1fr] lg:gap-10">
         {/* Images */}
         <div>
           <div
             ref={imageContainerRef}
-            className="aspect-square bg-muted rounded-lg overflow-hidden mb-3 relative cursor-crosshair border border-border"
+            className="aspect-square bg-muted rounded-lg overflow-hidden mb-3 relative cursor-crosshair border border-border lg:max-h-[640px]"
             onMouseEnter={() => setIsZooming(true)}
             onMouseLeave={() => setIsZooming(false)}
             onMouseMove={handleMouseMove}
@@ -315,7 +316,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 alt={product.name}
                 fill
                 priority={selectedImage === 0}
-                sizes="(min-width: 1024px) 55vw, 100vw"
+                sizes="(min-width: 1024px) 48vw, 100vw"
                 className="object-contain transition-transform duration-200"
                 style={isZooming ? {
                   transform: "scale(1.8)",
@@ -339,14 +340,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             )}
           </div>
           {product.images?.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="vp-swipe gap-2 pb-1">
               {product.images.map((img: any, i: number) => (
                 <button
                   key={i}
                   onClick={() => setSelectedImage(i)}
-                  className={`w-16 h-16 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${i === selectedImage ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/40"}`}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${i === selectedImage ? "border-primary ring-1 ring-primary" : "border-border hover:border-foreground/40"}`}
                 >
-                  <img src={thumbUrl(img.url, 128)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  <img src={thumbUrl(img.url, 128)} alt="" className="h-full w-full object-cover" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -355,12 +356,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
         {/* Info */}
         <div>
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">{product.brand}</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">{product.name}</h1>
+              <h1 className="mt-1 break-words text-xl font-semibold tracking-tight sm:text-2xl">{product.name}</h1>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleShare} title="Share">
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={handleShare} title="Share">
               <Share2 className="h-5 w-5" />
             </Button>
           </div>
@@ -370,7 +371,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               <div className="flex items-center gap-1">
                 <div className="flex items-center">
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className={`h-4 w-4 ${s <= Math.round(product.averageRating) ? "fill-foreground text-foreground" : "text-border"}`} />
+                    <Star key={s} className={`h-4 w-4 ${s <= Math.round(product.averageRating) ? "fill-warning text-warning" : "text-border"}`} />
                   ))}
                 </div>
                 <span className="text-sm font-medium">{product.averageRating}</span>
@@ -381,9 +382,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           </div>
 
           {/* Price */}
-          <div className="mt-4 p-4 bg-muted rounded-lg border border-border">
-            <div className="flex items-baseline gap-3">
-                      <span className="text-3xl font-semibold text-foreground">{formatPrice(product.price)}</span>
+          <div className="mt-4 rounded-lg border border-border bg-muted p-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-2xl font-semibold text-foreground sm:text-3xl">{formatPrice(product.price)}</span>
               {product.mrp > product.price && (
                 <>
                   <span className="text-lg text-muted-foreground line-through">{formatPrice(product.mrp)}</span>
@@ -399,6 +400,32 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </p>
             )}
           </div>
+
+          {/* Compatibility (summary) — sits between price and quantity */}
+          {product.compatibility?.length > 0 && (
+            <div className="mt-3 rounded-lg border border-border bg-muted p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Check className="h-3.5 w-3.5 text-success" /> Fits
+              </p>
+              <ul className="mt-1.5 space-y-1 text-sm">
+                {product.compatibility.slice(0, 2).map((compat: any, i: number) => (
+                  <li key={i} className="min-w-0 break-words">
+                    {compat.isUniversal
+                      ? "Universal fit"
+                      : [compat.vehicleType, compat.brand?.name, compat.vehicleModel?.name, compat.variant?.name]
+                          .filter(Boolean)
+                          .join(" ")}
+                    {compat.yearFrom && compat.yearTo ? ` (${compat.yearFrom}–${compat.yearTo})` : ""}
+                  </li>
+                ))}
+              </ul>
+              {product.compatibility.length > 2 && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  +{product.compatibility.length - 2} more in the Compatibility tab
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Stock */}
           <div className="mt-4">
@@ -417,30 +444,30 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
           {/* Part Numbers */}
           {(product.partNumber || product.oemPartNumber) && (
-            <div className="mt-3 p-3 bg-muted rounded-lg border border-border space-y-1 text-sm">
+            <div className="mt-3 space-y-1 rounded-lg border border-border bg-muted p-3 text-sm">
               {product.partNumber && (
-                <div className="flex gap-2"><span className="text-muted-foreground">Part No:</span><span className="font-mono font-medium">{product.partNumber}</span></div>
+                <div className="flex min-w-0 flex-wrap gap-x-2"><span className="text-muted-foreground">Part No:</span><span className="min-w-0 break-all font-mono font-medium">{product.partNumber}</span></div>
               )}
               {product.oemPartNumber && (
-                <div className="flex gap-2"><span className="text-muted-foreground">OEM No:</span><span className="font-mono font-medium">{product.oemPartNumber}</span></div>
+                <div className="flex min-w-0 flex-wrap gap-x-2"><span className="text-muted-foreground">OEM No:</span><span className="min-w-0 break-all font-mono font-medium">{product.oemPartNumber}</span></div>
               )}
             </div>
           )}
 
           {/* Seller */}
           {product.seller && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <Store className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Sold by:</span>
-              <span className="font-medium">{product.seller.sellerInfo?.businessName || product.seller.name}</span>
+              <span className="min-w-0 break-words font-medium">{product.seller.sellerInfo?.businessName || product.seller.name}</span>
             </div>
           )}
 
           {/* Quantity & Cart */}
           {product.stock > 0 && (
             <div className="mt-6 space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border rounded-lg">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="flex items-center rounded-lg border">
                   <button
                     onClick={() => setQty(Math.max(1, qty - 1))}
                     className="flex h-11 w-11 items-center justify-center rounded-l-lg transition-colors hover:bg-accent sm:h-9 sm:w-9"
@@ -459,27 +486,27 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
-                <span className="text-sm text-muted-foreground">
+                <span className="min-w-0 text-sm text-muted-foreground">
                   Total: <span className="font-bold text-foreground">{formatPrice(product.price * qty)}</span>
                 </span>
               </div>
-              <div className="flex gap-3">
-                <Button size="lg" onClick={handleAddToCart} className="flex-1" variant="outline" disabled={cartBusy}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <Button size="lg" onClick={handleAddToCart} className="w-full min-h-12 sm:w-auto sm:flex-1" variant="outline" disabled={cartBusy}>
                   {cartBusy ? (
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : (
-                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    <ShoppingCart className="mr-2 h-5 w-5" />
                   )}
                   Add to Cart
                 </Button>
-                <Button size="lg" onClick={handleBuyNow} className="flex-1" disabled={cartBusy}>
+                <Button size="lg" onClick={handleBuyNow} className="w-full min-h-12 sm:w-auto sm:flex-1" disabled={cartBusy}>
                   {cartBusy ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Working…</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</>
                   ) : (
                     'Buy Now'
                   )}
                 </Button>
-                <Button size="lg" variant="outline" onClick={handleToggleWishlist} disabled={wishBusy} aria-label="Add to wishlist">
+                <Button size="lg" variant="outline" className="w-full min-h-12 sm:w-auto" onClick={handleToggleWishlist} disabled={wishBusy} aria-label="Add to wishlist">
                   {wishBusy ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
@@ -529,50 +556,50 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
       {/* Tabs */}
       <div className="mt-10">
         <Tabs defaultValue="description">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specs">Specifications</TabsTrigger>
-            <TabsTrigger value="compatibility">Compatibility</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({totalReviewCount})</TabsTrigger>
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="description" className="min-h-10">Description</TabsTrigger>
+            <TabsTrigger value="specs" className="min-h-10">Specifications</TabsTrigger>
+            <TabsTrigger value="compatibility" className="min-h-10">Compatibility</TabsTrigger>
+            <TabsTrigger value="reviews" className="min-h-10">Reviews ({totalReviewCount})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="description" className="mt-4">
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <h3 className="mb-3 text-sm font-semibold">Highlights</h3>
                 <ul className="mb-6 grid grid-cols-1 gap-x-8 text-sm sm:grid-cols-2">
                   <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                     <span className="text-muted-foreground">Brand</span>
-                    <span className="font-medium">{product.brand}</span>
+                    <span className="min-w-0 break-words text-right font-medium">{product.brand}</span>
                   </li>
                   {product.category?.name && (
                     <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                       <span className="text-muted-foreground">Category</span>
-                      <span className="font-medium">{product.category.name}</span>
+                      <span className="min-w-0 break-words text-right font-medium">{product.category.name}</span>
                     </li>
                   )}
                   {product.partNumber && (
                     <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                       <span className="text-muted-foreground">Part Number</span>
-                      <span className="font-medium">{product.partNumber}</span>
+                      <span className="min-w-0 break-words text-right font-medium">{product.partNumber}</span>
                     </li>
                   )}
                   {product.oemPartNumber && (
                     <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                       <span className="text-muted-foreground">OEM Number</span>
-                      <span className="font-medium">{product.oemPartNumber}</span>
+                      <span className="min-w-0 break-words text-right font-medium">{product.oemPartNumber}</span>
                     </li>
                   )}
                   {product.sku && (
                     <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                       <span className="text-muted-foreground">SKU</span>
-                      <span className="font-medium">{product.sku}</span>
+                      <span className="min-w-0 break-words text-right font-medium">{product.sku}</span>
                     </li>
                   )}
                   {product.warranty && (
                     <li className="flex items-center justify-between gap-4 border-b border-border py-2">
                       <span className="text-muted-foreground">Warranty</span>
-                      <span className="font-medium">{product.warranty}</span>
+                      <span className="min-w-0 break-words text-right font-medium">{product.warranty}</span>
                     </li>
                   )}
                   <li className="flex items-center justify-between gap-4 border-b border-border py-2">
@@ -591,18 +618,20 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
           <TabsContent value="specs" className="mt-4">
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 {Object.keys(specs).length > 0 ? (
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {Object.entries(specs).map(([key, value]) => (
-                        <tr key={key} className="border-b last:border-0">
-                          <td className="py-2.5 text-muted-foreground pr-4 w-1/3">{key}</td>
-                          <td className="py-2.5 font-medium">{value as string}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="vp-table-scroll">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <tbody>
+                        {Object.entries(specs).map(([key, value]) => (
+                          <tr key={key} className="border-b last:border-0">
+                            <td className="w-1/3 py-2.5 pr-4 text-muted-foreground">{key}</td>
+                            <td className="py-2.5 font-medium">{value as string}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No specifications available</p>
                 )}
@@ -617,7 +646,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
           <TabsContent value="compatibility" className="mt-4">
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 {product.compatibility?.length > 0 ? (
                   <div className="space-y-3">
                     {product.compatibility.map((compat: any, i: number) => (
@@ -656,18 +685,18 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               {/* Rating Summary */}
               {totalReviewCount > 0 && (
                 <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-8 flex-wrap">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-8">
                       <div className="text-center">
                         <p className="text-4xl font-bold">{product.averageRating}</p>
-                        <div className="flex items-center gap-0.5 mt-1">
+                        <div className="mt-1 flex items-center gap-0.5">
                           {[1, 2, 3, 4, 5].map((s) => (
-                            <Star key={s} className={`h-4 w-4 ${s <= Math.round(product.averageRating) ? "fill-foreground text-foreground" : "text-border"}`} />
+                            <Star key={s} className={`h-4 w-4 ${s <= Math.round(product.averageRating) ? "fill-warning text-warning" : "text-border"}`} />
                           ))}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{totalReviewCount} reviews</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{totalReviewCount} reviews</p>
                       </div>
-                      <div className="flex-1 space-y-1 min-w-[200px]">
+                      <div className="min-w-[180px] flex-1 space-y-1">
                         {[5, 4, 3, 2, 1].map((star) => {
                           const entry = ratingBreakdown.find((r: any) => r._id === star);
                           return <RatingBar key={star} star={star} count={entry?.count || 0} total={totalReviewCount} />;
@@ -688,10 +717,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     <form onSubmit={handleSubmitReview} className="space-y-4">
                       <div>
                         <Label>Rating</Label>
-                        <div className="flex gap-1 mt-1">
+                        <div className="mt-1 flex flex-wrap gap-1">
                           {[1, 2, 3, 4, 5].map((r) => (
-                            <button key={r} type="button" onClick={() => setReviewForm({ ...reviewForm, rating: r })} className="p-0.5">
-                              <Star className={`h-7 w-7 transition-colors ${r <= reviewForm.rating ? "fill-foreground text-foreground" : "text-border hover:text-foreground/60"}`} />
+                            <button key={r} type="button" onClick={() => setReviewForm({ ...reviewForm, rating: r })} className="flex h-11 w-11 items-center justify-center rounded-md transition-colors hover:bg-muted sm:h-9 sm:w-9">
+                              <Star className={`h-7 w-7 transition-colors ${r <= reviewForm.rating ? "fill-warning text-warning" : "text-border hover:text-foreground/60"}`} />
                             </button>
                           ))}
                         </div>
@@ -706,26 +735,31 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                       </div>
                       <div>
                         <Label>Photos (optional)</Label>
-                        <div className="flex flex-wrap gap-2 mt-1">
+                        <div className="mt-1 flex flex-wrap gap-2">
                           {reviewImagePreviews.map((src, i) => (
-                            <div key={i} className="relative w-16 h-16 rounded border overflow-hidden">
-                              <img src={src} alt="" className="w-full h-full object-cover" />
-                              <button type="button" onClick={() => removeReviewImage(i)} className="absolute top-0.5 right-0.5 bg-black/50 rounded-full p-0.5">
-                                <X className="h-2.5 w-2.5 text-white" />
+                            <div key={i} className="relative h-20 w-20 overflow-hidden rounded border">
+                              <img src={src} alt="" className="h-full w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removeReviewImage(i)}
+                                aria-label="Remove photo"
+                                className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center rounded-bl-lg bg-black/60 text-white transition-colors hover:bg-black/70"
+                              >
+                                <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           ))}
                           {reviewImages.length < 5 && (
-                            <label className="w-16 h-16 rounded border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-muted transition-colors">
+                            <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded border-2 border-dashed transition-colors hover:bg-muted">
                               <Camera className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-[9px] text-muted-foreground">Add</span>
+                              <span className="text-[10px] text-muted-foreground">Add</span>
                               <input type="file" multiple accept="image/*" className="hidden" onChange={handleReviewImageChange} />
                             </label>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Max 5 photos</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Max 5 photos</p>
                       </div>
-                      <Button type="submit" disabled={submitting}>
+                      <Button type="submit" className="w-full min-h-11 sm:w-auto" disabled={submitting}>
                         {submitting ? "Submitting..." : "Submit Review"}
                       </Button>
                     </form>
@@ -741,67 +775,73 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                       <CardContent className="p-4">
                         {editingReview === review._id ? (
                           <div className="space-y-3">
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-1">
                               {[1, 2, 3, 4, 5].map((r) => (
-                                <button key={r} type="button" onClick={() => setEditForm({ ...editForm, rating: r })}>
-                                  <Star className={`h-5 w-5 ${r <= editForm.rating ? "fill-foreground text-foreground" : "text-border"}`} />
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={() => setEditForm({ ...editForm, rating: r })}
+                                  aria-label={`Rate ${r} star${r > 1 ? "s" : ""}`}
+                                  className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-muted sm:h-8 sm:w-8"
+                                >
+                                  <Star className={`h-5 w-5 ${r <= editForm.rating ? "fill-warning text-warning" : "text-border"}`} />
                                 </button>
                               ))}
                             </div>
                             <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
                             <Textarea value={editForm.comment} onChange={(e) => setEditForm({ ...editForm, comment: e.target.value })} rows={2} />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={() => handleEditReview(review._id)}>Save</Button>
-                              <Button size="sm" variant="ghost" onClick={() => setEditingReview(null)}>Cancel</Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" className="min-h-10" onClick={() => handleEditReview(review._id)}>Save</Button>
+                              <Button size="sm" variant="ghost" className="min-h-10" onClick={() => setEditingReview(null)}>Cancel</Button>
                             </div>
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
                                   <span className="text-sm font-medium text-foreground">{review.user?.name?.charAt(0) || "?"}</span>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium">{review.user?.name || "User"}</p>
-                                  <div className="flex items-center gap-1">
+                                <div className="min-w-0">
+                                  <p className="break-words text-sm font-medium">{review.user?.name || "User"}</p>
+                                  <div className="flex flex-wrap items-center gap-1">
                                     {[1, 2, 3, 4, 5].map((s) => (
-                                      <Star key={s} className={`h-3 w-3 ${s <= review.rating ? "fill-foreground text-foreground" : "text-border"}`} />
+                                      <Star key={s} className={`h-3 w-3 ${s <= review.rating ? "fill-warning text-warning" : "text-border"}`} />
                                     ))}
-                                    <span className="text-xs text-muted-foreground ml-1">{formatDate(review.createdAt)}</span>
+                                    <span className="ml-1 text-xs text-muted-foreground">{formatDate(review.createdAt)}</span>
                                   </div>
                                 </div>
                                 {review.isVerifiedPurchase && (
-                                  <Badge variant="secondary" className="text-xs"><Check className="h-3 w-3 mr-0.5" /> Verified</Badge>
+                                  <Badge variant="secondary" className="text-xs"><Check className="mr-0.5 h-3 w-3" /> Verified</Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-1">
                                 {user && user.id === review.user?._id && (
                                   <>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingReview(review._id); setEditForm({ rating: review.rating, title: review.title || "", comment: review.comment }); }}>
+                                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => { setEditingReview(review._id); setEditForm({ rating: review.rating, title: review.title || "", comment: review.comment }); }}>
                                       <Pencil className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteReview(review._id)}>
+                                    <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive sm:h-7 sm:w-7" onClick={() => handleDeleteReview(review._id)}>
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </>
                                 )}
                               </div>
                             </div>
-                            {review.title && <p className="text-sm font-medium mt-2">{review.title}</p>}
-                            <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
+                            {review.title && <p className="mt-2 break-words text-sm font-medium">{review.title}</p>}
+                            <p className="mt-1 break-words text-sm text-muted-foreground">{review.comment}</p>
                             {review.images && review.images.length > 0 && (
-                              <div className="flex gap-2 mt-3">
+                              <div className="mt-3 flex flex-wrap gap-2">
                                 {review.images.map((img: string, i: number) => (
                                   <a key={i} href={img} target="_blank" rel="noopener noreferrer">
-                                    <img src={thumbUrl(img, 128)} alt="" className="w-16 h-16 rounded object-cover border hover:opacity-80 transition-opacity" loading="lazy" />
+                                    <img src={thumbUrl(img, 128)} alt="" className="h-16 w-16 rounded border object-cover transition-opacity hover:opacity-80" loading="lazy" />
                                   </a>
                                 ))}
                               </div>
                             )}
-                            <div className="flex items-center gap-3 mt-3 pt-2 border-t">
-                              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => handleHelpful(review._id)}>
-                                <ThumbsUp className="h-3 w-3 mr-1" /> Helpful ({review.helpful || 0})
+                            <div className="mt-3 flex flex-wrap items-center gap-3 border-t pt-2">
+                              <Button variant="ghost" size="sm" className="min-h-10 text-xs sm:h-7 sm:min-h-0" onClick={() => handleHelpful(review._id)}>
+                                <ThumbsUp className="mr-1 h-3 w-3" /> Helpful ({review.helpful || 0})
                               </Button>
                             </div>
                           </>
@@ -825,12 +865,36 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
       {related.length > 0 && (
         <section className="mt-10">
           <h2 className="vp-heading mb-4">Related Products</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 min-[1700px]:grid-cols-5">
             {related.map((p: any) => (
               <ProductCard key={p._id} product={p} />
             ))}
           </div>
         </section>
+      )}
+
+      {/* Recently Viewed — controlled (a few products + View All), real
+          history only; the current product excludes itself. */}
+      <RecentlyViewed excludeId={product._id} className="mt-12" />
+
+      {/* Mobile sticky action bar (lg and up use the inline buttons above) */}
+      {product.stock > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-tight text-foreground">{formatPrice(product.price * qty)}</p>
+              <p className="truncate text-xs text-muted-foreground">{product.name}</p>
+            </div>
+            <Button size="lg" className="min-h-12 shrink-0 px-6" onClick={handleAddToCart} disabled={cartBusy}>
+              {cartBusy ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <ShoppingCart className="mr-2 h-5 w-5" />
+              )}
+              Add to Cart
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

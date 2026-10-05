@@ -14,25 +14,27 @@ const NAV = [
 export default function CategoryNav() {
   return (
     <nav aria-label="Shop by vehicle type" className="border-b border-border bg-card">
+      {/* Horizontally scrollable strip on phones — only this row scrolls,
+          the page itself never overflows sideways. */}
       <div className="vp-container">
-        <ul className="no-scrollbar flex items-center gap-0 overflow-x-auto py-0">
+        <ul className="no-scrollbar flex items-center gap-1 overflow-x-auto py-1 sm:justify-between">
           {NAV.map(({ label, value, Icon }) => (
-            <li key={value}>
+            <li key={value} className="shrink-0">
               <Link
                 href={`/products?vehicleType=${value}`}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <Icon className="h-4 w-4" aria-hidden />
+                <Icon className="h-4 w-4 shrink-0" aria-hidden />
                 {label}
               </Link>
             </li>
           ))}
-          <li>
+          <li className="shrink-0">
             <Link
               href="/products"
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <LayoutGrid className="h-4 w-4" aria-hidden />
+              <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
               All Parts
             </Link>
           </li>

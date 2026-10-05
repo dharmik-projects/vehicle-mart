@@ -44,20 +44,21 @@ export default function AdminInventoryPage() {
   };
 
   return (
-    <div className="space-y-5 fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="vp-main space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Inventory Monitoring</h1>
           <p className="text-sm text-muted-foreground">{pagination?.total || 0} products tracked</p>
         </div>
-        <Button size="sm" variant={lowStockOnly ? "default" : "outline"} onClick={() => { setLowStockOnly(!lowStockOnly); setPage(1); }} className="rounded-lg self-start sm:self-auto">
+        <Button size="sm" variant={lowStockOnly ? "default" : "outline"} onClick={() => { setLowStockOnly(!lowStockOnly); setPage(1); }} className="rounded-lg self-start sm:self-auto w-full sm:w-auto min-h-10">
           <AlertTriangle className="h-3 w-3 mr-1" /> Low Stock Only
         </Button>
       </div>
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* Desktop (md+): table */}
+      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
+        <div className="vp-table-scroll">
+          <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="text-left py-3 px-4 font-medium">Product</th>
@@ -100,12 +101,56 @@ export default function AdminInventoryPage() {
         </div>
       </div>
 
+      {/* Mobile: compact cards */}
+      <div className="md:hidden space-y-3">
+        {products.map((p) => (
+          <div key={p._id} className={`bg-card rounded-lg border border-border p-4 space-y-3 ${p.stock <= 5 ? "border-l-4 border-l-destructive" : ""}`}>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground truncate">{p.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{p.brand}</p>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">SKU</span>
+                <span className="font-mono text-xs text-muted-foreground truncate text-right min-w-0">{p.sku}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Category</span>
+                <span className="text-foreground truncate text-right min-w-0">{p.category?.name || "—"}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Seller</span>
+                <span className="text-foreground truncate text-right min-w-0">{p.seller?.sellerInfo?.businessName || p.seller?.name || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Stock</span>
+                <span className={`font-semibold ${p.stock <= 5 ? "text-destructive" : p.stock <= 10 ? "text-warning" : "text-foreground"}`}>
+                  {p.stock}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Threshold</span>
+                <span className="text-foreground">{p.lowStockThreshold || 5}</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => { setEditingStock(p); setStockValue(String(p.stock)); }} className="rounded-lg min-h-10">
+                Update Stock
+              </Button>
+            </div>
+          </div>
+        ))}
+        {products.length === 0 && (
+          <div className="text-center py-10 bg-card border border-border rounded-lg text-sm text-muted-foreground">No products found</div>
+        )}
+      </div>
+
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg">Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg">Next</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg min-h-10">Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg min-h-10">Next</Button>
           </div>
         </div>
       )}
@@ -114,14 +159,14 @@ export default function AdminInventoryPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Update Stock</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground">{editingStock?.name}</p>
+            <p className="text-sm text-muted-foreground break-words">{editingStock?.name}</p>
             <div>
               <Label className="text-xs">Stock Quantity</Label>
-              <Input type="number" min="0" value={stockValue} onChange={(e) => setStockValue(e.target.value)} className="mt-1 h-9" />
+              <Input type="number" min="0" value={stockValue} onChange={(e) => setStockValue(e.target.value)} className="mt-1 h-11 sm:h-9" />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingStock(null)} className="rounded-lg">Cancel</Button>
-              <Button onClick={handleUpdateStock} className="rounded-lg">Update</Button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setEditingStock(null)} className="rounded-lg min-h-11">Cancel</Button>
+              <Button onClick={handleUpdateStock} className="rounded-lg min-h-11">Update</Button>
             </div>
           </div>
         </DialogContent>

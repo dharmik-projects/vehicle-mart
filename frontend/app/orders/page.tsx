@@ -55,17 +55,17 @@ export default function OrdersPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 fade-in">
-      <h1 className="text-2xl font-display font-bold text-foreground mb-4">My Orders</h1>
+    <div className="vp-container py-6 sm:py-8 fade-in">
+      <h1 className="mb-4 text-xl font-display font-bold text-foreground sm:text-2xl">My Orders</h1>
 
       <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-5 overflow-x-auto no-scrollbar pb-1">
-        <TabsList className="h-9">
-          <TabsTrigger value="" className="text-[13px]">All</TabsTrigger>
-          <TabsTrigger value="pending" className="text-[13px]">Pending</TabsTrigger>
-          <TabsTrigger value="confirmed" className="text-[13px]">Confirmed</TabsTrigger>
-          <TabsTrigger value="shipped" className="text-[13px]">Shipped</TabsTrigger>
-          <TabsTrigger value="delivered" className="text-[13px]">Delivered</TabsTrigger>
-          <TabsTrigger value="cancelled" className="text-[13px]">Cancelled</TabsTrigger>
+        <TabsList className="h-12 sm:h-10">
+          <TabsTrigger value="" className="min-h-10 text-[13px] sm:min-h-0">All</TabsTrigger>
+          <TabsTrigger value="pending" className="min-h-10 text-[13px] sm:min-h-0">Pending</TabsTrigger>
+          <TabsTrigger value="confirmed" className="min-h-10 text-[13px] sm:min-h-0">Confirmed</TabsTrigger>
+          <TabsTrigger value="shipped" className="min-h-10 text-[13px] sm:min-h-0">Shipped</TabsTrigger>
+          <TabsTrigger value="delivered" className="min-h-10 text-[13px] sm:min-h-0">Delivered</TabsTrigger>
+          <TabsTrigger value="cancelled" className="min-h-10 text-[13px] sm:min-h-0">Cancelled</TabsTrigger>
         </TabsList>
       </Tabs>
 

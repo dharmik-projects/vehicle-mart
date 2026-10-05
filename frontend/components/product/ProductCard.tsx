@@ -32,7 +32,7 @@ function Stars({ rating }: { rating: number }) {
         <svg
           key={i}
           viewBox="0 0 20 20"
-          className={`h-3.5 w-3.5 ${i <= Math.round(rating) ? "fill-foreground" : "fill-foreground/25"}`}
+          className={`h-3 w-3 ${i <= Math.round(rating) ? "fill-warning" : "fill-foreground/20"}`}
           aria-hidden
         >
           <path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.07 3.29a1 1 0 0 0 .95.69h3.46c.97 0 1.37 1.24.59 1.81l-2.8 2.03a1 1 0 0 0-.36 1.12l1.07 3.29c.3.92-.76 1.69-1.54 1.12l-2.8-2.03a1 1 0 0 0-1.18 0l-2.8 2.03c-.78.57-1.84-.2-1.54-1.12l1.07-3.29a1 1 0 0 0-.36-1.12L3.98 8.72c-.78-.57-.38-1.81.59-1.81h3.46a1 1 0 0 0 .95-.69l1.07-3.29Z" />
@@ -42,6 +42,22 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
+/**
+ * Marketplace product card.
+ *
+ * Structure (top → bottom):
+ *   [ Discount badge ]              [ Wishlist ]
+ *   [        Large square image (contain — never cropped)        ]
+ *   Brand / category
+ *   Product name (2-line clamp, fixed min-height)
+ *   Rating
+ *   ₹ price   MRP   discount
+ *   ✓ stock / compatibility chip
+ *   [            Add to cart (pinned to the bottom)            ]
+ *
+ * Every section is height-stable so cards in a row stay aligned, and the
+ * card grows with its grid cell instead of cramming content.
+ */
 function ProductCard({ product, className = "" }: ProductCardProps) {
   // Selector subscriptions — a cart change must NOT re-render every card.
   const user = useAuthStore((s) => s.user);
@@ -61,6 +77,11 @@ function ProductCard({ product, className = "" }: ProductCardProps) {
   const lowStock = !outOfStock && product.stock <= 5;
   const image = product.images?.find((i: any) => i.url && !i.isVideo) || product.images?.[0];
   const vehicleTypes: string[] = product.vehicleTypes || [];
+
+  /* Brand, falling back to category name when brand is missing */
+  const categoryName =
+    typeof product.category === "object" ? product.category?.name || "" : "";
+  const brandLine = product.brand || categoryName;
 
   /* Lazy wishlist hydrate — only when the card is actually interacted with */
   const ensureWishlistState = async () => {
@@ -127,17 +148,41 @@ function ProductCard({ product, className = "" }: ProductCardProps) {
       onMouseEnter={ensureWishlistState}
       onFocus={ensureWishlistState}
     >
-      {/* Image */}
-      <div className="relative aspect-square w-full overflow-hidden bg-muted/60">
+      {/* Meta row — badge + wishlist live OUTSIDE the image so nothing ever
+          overlaps the product photo */}
+      <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5 pt-2 sm:px-3 sm:pb-2 sm:pt-2.5">
+        {discount > 0 ? (
+          <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[11px] font-bold leading-none tracking-wide text-primary-foreground">
+            {discount}% OFF
+          </span>
+        ) : (
+          <span aria-hidden />
+        )}
+        <button
+          type="button"
+          aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          onClick={handleWishlist}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+            wishlisted
+              ? "border-foreground bg-foreground text-background"
+              : "border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${wishlisted ? "fill-current" : ""}`} />
+        </button>
+      </div>
+
+      {/* Image — 4:3 uses the wider card without making it a tall rectangle */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted/40">
         {image && !imgError ? (
           <Image
             src={thumbUrl(image.url, 500)}
             alt={product.images?.[0]?.alt || product.name}
             fill
-            sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+            sizes="(min-width: 1536px) 20vw, (min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 50vw"
             loading="lazy"
             onError={() => setImgError(true)}
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="object-contain p-2 transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground/60">
@@ -145,119 +190,98 @@ function ProductCard({ product, className = "" }: ProductCardProps) {
           </div>
         )}
 
-        {/* Discount */}
-        {discount > 0 && (
-          <span className="absolute left-2 top-2 rounded bg-primary px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-primary-foreground">
-            {discount}% OFF
-          </span>
-        )}
-
-        {/* Out of stock */}
+        {/* Out of stock state over the image */}
         {outOfStock && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/70">
             <span className="vp-badge vp-badge-danger">Out of Stock</span>
           </div>
         )}
-
-        {/* Wishlist — always visible on touch, hover-reveal on desktop */}
-        <button
-          type="button"
-          aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          onClick={handleWishlist}
-          className={`absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
-            wishlisted
-              ? "border-foreground bg-foreground text-background"
-              : "border-border bg-card/95 text-muted-foreground opacity-100 hover:border-foreground hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-          }`}
-        >
-          <Heart className={`h-4 w-4 ${wishlisted ? "fill-current" : ""}`} />
-        </button>
-
-        {/* Quick add — pinned & visible on mobile (no hover), slides up on desktop */}
-        <div className="pointer-events-auto absolute inset-x-0 bottom-0 translate-y-0 p-2 transition-transform duration-200 sm:pointer-events-none sm:translate-y-full sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0">
-          <button
-            type="button"
-            disabled={outOfStock || adding}
-            onClick={handleAddToCart}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {adding ? (
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-background/30 border-t-background" />
-            ) : (
-              <>
-                <ShoppingCart className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> Add to Cart
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col gap-1 p-3 sm:p-3.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {product.brand}
+      {/* Body — compact 4px rhythm so the card stays short; ATC pinned at the bottom */}
+      <div className="flex flex-1 flex-col gap-1 p-2.5">
+        <span className="block min-h-4 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          {brandLine}
         </span>
 
-        <h3 className="line-clamp-2 min-h-[2.625rem] text-sm font-semibold leading-snug text-foreground group-hover:underline">
+        <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-medium leading-snug text-foreground group-hover:underline sm:min-h-[2.5rem] sm:text-sm">
           {product.name}
         </h3>
 
-        {product.averageRating > 0 ? (
-          <span className="flex items-center gap-1">
-            <span className="flex items-center gap-0.5 rounded bg-muted/80 px-1.5 py-0.5">
-              <span className="text-xs font-bold text-foreground">{product.averageRating.toFixed(1)}</span>
-              <Stars rating={product.averageRating} />
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({product.totalReviews || 0})
-            </span>
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">No ratings yet</span>
-        )}
+        {/* Rating — fixed-height row so price/stock never shift between cards */}
+        <div className="flex min-h-5 flex-wrap items-center gap-x-1">
+          {product.averageRating > 0 ? (
+            <>
+              <span className="flex items-center gap-0.5 rounded bg-muted/80 px-1.5 py-0.5">
+                <span className="text-xs font-bold leading-none text-foreground">
+                  {product.averageRating.toFixed(1)}
+                </span>
+                <Stars rating={product.averageRating} />
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({product.totalReviews || 0})
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">No ratings yet</span>
+          )}
+        </div>
 
-        {/* Price */}
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
-          <span className="text-lg font-bold text-foreground">{formatPrice(product.price)}</span>
+        {/* Price: selling price + MRP + discount — fits on one line at 360px */}
+        <div className="flex flex-wrap items-baseline gap-x-1 gap-y-1 sm:gap-x-1.5">
+          <span className="text-[16px] font-bold leading-tight text-foreground sm:text-lg">
+            {formatPrice(product.price)}
+          </span>
           {product.mrp > product.price && (
-            <span className="text-xs text-muted-foreground line-through">
+            <span className="text-[11px] text-muted-foreground line-through sm:text-xs">
               {formatPrice(product.mrp)}
             </span>
           )}
           {discount > 0 && (
-            <span className="text-[11px] font-semibold text-success">{discount}% off</span>
+            <span className="text-[11px] font-semibold text-success sm:text-xs">
+              {discount}% off
+            </span>
           )}
         </div>
 
-        {/* Stock */}
-        {outOfStock ? (
-          <span className="text-xs font-medium text-destructive">Out of stock</span>
-        ) : lowStock ? (
-          <span className="text-xs font-medium text-warning">Only {product.stock} left</span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs font-medium text-success">
-            <Check className="h-3.5 w-3.5" /> In stock
-          </span>
-        )}
+        {/* Stock + compatibility — one stable row (chip truncates instead of wrapping) */}
+        <div className="flex min-h-5 items-center gap-1.5">
+          {outOfStock ? (
+            <span className="shrink-0 whitespace-nowrap text-xs font-medium text-destructive sm:text-[13px]">
+              Out of stock
+            </span>
+          ) : lowStock ? (
+            <span className="shrink-0 whitespace-nowrap text-xs font-medium text-warning sm:text-[13px]">
+              Only {product.stock} left
+            </span>
+          ) : (
+            <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-success sm:text-[13px]">
+              <Check className="h-3.5 w-3.5" /> In stock
+            </span>
+          )}
+          {vehicleTypes.length > 0 && (
+            <span className="ml-auto block max-w-[50%] min-w-0 truncate rounded border border-border/70 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-muted-foreground">
+              {VEHICLE_LABELS[vehicleTypes[0]] || vehicleTypes[0]}
+              {vehicleTypes.length > 1 ? ` +${vehicleTypes.length - 1}` : ""}
+            </span>
+          )}
+        </div>
 
-        {/* Vehicle compatibility */}
-        {vehicleTypes.length > 0 && (
-          <div className="mt-auto flex flex-wrap gap-1 pt-2">
-            {vehicleTypes.slice(0, 3).map((vt) => (
-              <span
-                key={vt}
-                className="rounded border border-border/70 bg-muted/50 px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
-              >
-                {VEHICLE_LABELS[vt] || vt}
-              </span>
-            ))}
-            {vehicleTypes.length > 3 && (
-              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                +{vehicleTypes.length - 3}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Add to cart — full-width, fixed height, vertically centered, pinned */}
+        <button
+          type="button"
+          disabled={outOfStock || adding}
+          onClick={handleAddToCart}
+          className="mt-auto flex h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:text-sm"
+        >
+          {adding ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-background/30 border-t-background" />
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4 shrink-0" /> Add to Cart
+            </>
+          )}
+        </button>
       </div>
     </Link>
   );

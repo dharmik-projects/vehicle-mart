@@ -93,7 +93,7 @@ export default function SellerProducts() {
   }, [user, router, page, statusFilter, debouncedSearch]);
 
   /* Reference data (categories, vehicle makes) loads once per mount through
-     the shared client cache — same key naming as the shop's /products page —
+     the shared client cache â€” same key naming as the shop's /products page â€”
      so paging and filtering never re-request it. */
   useEffect(() => {
     if (!user || (user.role !== "seller" && user.role !== "admin")) return;
@@ -118,7 +118,7 @@ export default function SellerProducts() {
       if (statusFilter !== "all") params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       const data = await api.getSellerProducts(params);
-      if (seq !== seqRef.current) return; // stale response — ignore out-of-order replies
+      if (seq !== seqRef.current) return; // stale response â€” ignore out-of-order replies
       setProducts(data.products || []);
       setPagination(data.pagination);
     } catch (err) { console.error(err); }
@@ -129,7 +129,7 @@ export default function SellerProducts() {
     try {
       const data = await cached("categoriesFlat", () => api.getCategoriesFlat());
       const list: any[] = data.categories || [];
-      // Flat endpoint → ordered main-then-its-children so the dropdown is a
+      // Flat endpoint â†’ ordered main-then-its-children so the dropdown is a
       // browsable tree (sortOrders repeat across parents, so raw sort would jumble).
       const byOrder = (a: any, b: any) =>
         (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || String(a.name).localeCompare(String(b.name));
@@ -347,7 +347,7 @@ export default function SellerProducts() {
       }
 
       // Image upload and compatibility are independent of each other (both only
-      // need the product id) — run them in parallel instead of sequentially.
+      // need the product id) â€” run them in parallel instead of sequentially.
       const compatPromise = api.updateSellerProductCompatibility(productId, compatPayload);
       const uploadPromise: Promise<any> =
         imageFiles.length > 0 && productId
@@ -432,22 +432,22 @@ export default function SellerProducts() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="vp-main space-y-6 fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Products</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Products</h1>
           <p className="text-muted-foreground text-sm">Manage your product catalog</p>
         </div>
-        <Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4 mr-2" /> Add Product</Button>
+        <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Add Product</Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search products..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input placeholder="Search products..." className="pl-9 h-11 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
@@ -458,14 +458,14 @@ export default function SellerProducts() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3].map((i) => (
             <Card key={i}><CardContent className="p-4"><div className="animate-pulse space-y-3"><div className="h-32 bg-muted rounded" /><div className="h-4 bg-muted rounded w-3/4" /><div className="h-4 bg-muted rounded w-1/2" /></div></CardContent></Card>
           ))}
         </div>
       ) : products.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {products.map((p) => (
               <Card key={p._id} className="overflow-hidden">
                 <div className="relative h-40 bg-muted">
@@ -489,19 +489,19 @@ export default function SellerProducts() {
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-sm line-clamp-1 mb-1">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-1">{p.brand} • {p.category?.name || "N/A"}</p>
+                  <p className="text-xs text-muted-foreground mb-1 truncate">{p.brand} â€¢ {p.category?.name || "N/A"}</p>
                   {p._compat && p._compat.length > 0 && (
-                    <div className="flex items-center gap-1 mb-2">
+                    <div className="flex items-center gap-1 mb-2 min-w-0">
                       {p._compat.some((c: any) => c.isUniversal) ? (
                         <Badge variant="secondary" className="text-xs px-1.5 py-0"><Globe className="h-2.5 w-2.5 mr-0.5" /> Universal</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs px-1.5 py-0"><Car className="h-2.5 w-2.5 mr-0.5" /> {getCompatLabel(p)}</Badge>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0 min-w-0"><Car className="h-2.5 w-2.5 mr-0.5 shrink-0" /> <span className="truncate min-w-0">{getCompatLabel(p)}</span></Badge>
                       )}
                     </div>
                   )}
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <span className="text-lg font-bold">{formatPrice(p.price)}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+                    <div className="min-w-0">
+                      <span className="text-lg font-bold tabular-nums">{formatPrice(p.price)}</span>
                       {p.mrp > p.price && (
                         <span className="text-xs text-muted-foreground line-through ml-2">{formatPrice(p.mrp)}</span>
                       )}
@@ -509,15 +509,19 @@ export default function SellerProducts() {
                     <span className="text-xs text-muted-foreground">Stock: {p.stock}</span>
                   </div>
                   {p.images && p.images.length > 0 && (
-                    <div className="flex gap-1 mb-3">
+                    <div className="flex flex-wrap gap-1 mb-3">
                       {p.images.slice(0, 4).map((img: any, i: number) => (
                         <div key={i} className="relative w-10 h-10 rounded border overflow-hidden group">
                           <img src={thumbUrl(img.url, 160)} alt="" loading="lazy" className="w-full h-full object-cover" />
                           <button
+                            type="button"
+                            aria-label="Remove image"
                             onClick={() => handleDeleteImage(p._id, i)}
-                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                            className="absolute top-0 right-0 flex h-10 w-10 items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 transition-opacity"
                           >
-                            <X className="h-3 w-3 text-white" />
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60">
+                              <X className="h-3 w-3 text-white" />
+                            </span>
                           </button>
                         </div>
                       ))}
@@ -528,18 +532,18 @@ export default function SellerProducts() {
                       )}
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => handleOpenForm(p)}>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" className="min-h-10 flex-1 min-w-[104px]" onClick={() => handleOpenForm(p)}>
                       <Edit className="h-3 w-3 mr-1" /> Edit
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleToggle(p._id)} disabled={busyId === p._id}>
+                    <Button size="sm" variant="outline" className="min-h-10" onClick={() => handleToggle(p._id)} disabled={busyId === p._id}>
                       {busyId === p._id && busyAction === "toggle" ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         p.isActive ? "Off" : "On"
                       )}
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(p._id)} disabled={busyId === p._id}>
+                    <Button size="sm" variant="ghost" className="min-h-10 min-w-10 px-3 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(p._id)} disabled={busyId === p._id}>
                       {busyId === p._id && busyAction === "delete" ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
@@ -553,13 +557,15 @@ export default function SellerProducts() {
           </div>
 
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}>
                 <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
               </Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}>
                 <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
               </Button>
             </div>
           )}
@@ -574,7 +580,7 @@ export default function SellerProducts() {
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
           </DialogHeader>
@@ -585,13 +591,15 @@ export default function SellerProducts() {
                 {imagePreviews.map((src, i) => (
                   <div key={i} className="relative w-20 h-20 rounded border overflow-hidden">
                     <img src={src} alt="" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeImage(i)} className="absolute top-0.5 right-0.5 bg-black/50 rounded-full p-0.5">
-                      <X className="h-3 w-3 text-white" />
+                    <button type="button" aria-label="Remove image" onClick={() => removeImage(i)} className="absolute top-0 right-0 flex h-10 w-10 items-center justify-center">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60">
+                        <X className="h-3.5 w-3.5 text-white" />
+                      </span>
                     </button>
                   </div>
                 ))}
                 {imageFiles.length < 8 && (
-                  <label className="w-20 h-20 rounded border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted">
+                  <label className="w-full sm:w-20 h-20 rounded border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted">
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Upload</span>
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
@@ -601,68 +609,77 @@ export default function SellerProducts() {
               <p className="text-xs text-muted-foreground mt-1">Max 8 images. JPG, PNG, WebP.</p>
             </div>
 
-            <div><Label>Product Name *</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><Label>Description *</Label><Textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Details</h3>
+              <div><Label>Product Name *</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+              <div><Label>Description *</Label><Textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Brand *</Label><Input required value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
-              <div>
-                <Label>Category *</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c: any) => (
-                      <SelectItem key={c._id} value={c._id}>
-                        {c.parent ? `${c.parent.name} › ${c.name}` : c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div><Label>Brand *</Label><Input required value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
+                <div>
+                  <Label>Category *</Label>
+                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c: any) => (
+                        <SelectItem key={c._id} value={c._id}>
+                          {c.parent ? `${c.parent.name} â€º ${c.name}` : c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Selling Price (₹) *</Label><Input type="number" required min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-              <div><Label>MRP (₹) *</Label><Input type="number" required min="0" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} /></div>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Pricing &amp; Inventory</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div><Label>Selling Price (â‚¹) *</Label><Input type="number" required min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
+                <div><Label>MRP (â‚¹) *</Label><Input type="number" required min="0" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} /></div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div><Label>Part Number</Label><Input value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} /></div>
+                <div><Label>OEM Part Number</Label><Input value={form.oemPartNumber} onChange={(e) => setForm({ ...form, oemPartNumber: e.target.value })} /></div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div><Label>Stock *</Label><Input type="number" required min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
+                <div><Label>Low Stock Alert</Label><Input type="number" min="0" value={form.lowStockThreshold} onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })} /></div>
+                <div><Label>Weight (kg)</Label><Input type="number" min="0" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} /></div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Part Number</Label><Input value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} /></div>
-              <div><Label>OEM Part Number</Label><Input value={form.oemPartNumber} onChange={(e) => setForm({ ...form, oemPartNumber: e.target.value })} /></div>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Additional Info</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div><Label>Warranty</Label><Input value={form.warranty} placeholder="e.g. 6 months" onChange={(e) => setForm({ ...form, warranty: e.target.value })} /></div>
+                <div><Label>Origin Country</Label><Input value={form.originCountry} placeholder="e.g. India" onChange={(e) => setForm({ ...form, originCountry: e.target.value })} /></div>
+              </div>
+              <div><Label>Tags</Label><Input value={form.tags} placeholder="comma separated tags" onChange={(e) => setForm({ ...form, tags: e.target.value })} /></div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div><Label>Stock *</Label><Input type="number" required min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-              <div><Label>Low Stock Alert</Label><Input type="number" min="0" value={form.lowStockThreshold} onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })} /></div>
-              <div><Label>Weight (kg)</Label><Input type="number" min="0" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} /></div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Warranty</Label><Input value={form.warranty} placeholder="e.g. 6 months" onChange={(e) => setForm({ ...form, warranty: e.target.value })} /></div>
-              <div><Label>Origin Country</Label><Input value={form.originCountry} placeholder="e.g. India" onChange={(e) => setForm({ ...form, originCountry: e.target.value })} /></div>
-            </div>
-            <div><Label>Tags</Label><Input value={form.tags} placeholder="comma separated tags" onChange={(e) => setForm({ ...form, tags: e.target.value })} /></div>
 
             <Separator />
             <div>
               <Label className="text-base font-semibold">Vehicle Compatibility</Label>
               <p className="text-xs text-muted-foreground mb-3">Define which vehicles this product fits. Leave as Universal if it fits all.</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-4">
                 <button type="button" onClick={() => setCompatType("universal")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "universal" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  className={`p-3 min-h-10 rounded-lg border-2 text-left transition-colors ${compatType === "universal" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
                   <Globe className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Universal</p>
                   <p className="text-xs text-muted-foreground">Fits all vehicles</p>
                 </button>
                 <button type="button" onClick={() => setCompatType("vehicleType")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "vehicleType" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  className={`p-3 min-h-10 rounded-lg border-2 text-left transition-colors ${compatType === "vehicleType" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
                   <Car className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Vehicle Type</p>
                   <p className="text-xs text-muted-foreground">All cars, bikes, etc.</p>
                 </button>
                 <button type="button" onClick={() => setCompatType("specific")}
-                  className={`p-3 rounded-lg border-2 text-left transition-colors ${compatType === "specific" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                  className={`p-3 min-h-10 rounded-lg border-2 text-left transition-colors ${compatType === "specific" ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
                   <CircleDot className="h-5 w-5 mb-1 text-foreground" />
                   <p className="text-sm font-medium">Specific</p>
                   <p className="text-xs text-muted-foreground">Exact model fitment</p>
@@ -673,7 +690,7 @@ export default function SellerProducts() {
                 <div className="max-w-xs">
                   <Label>Select Vehicle Type</Label>
                   <Select value={compatVehicleType} onValueChange={setCompatVehicleType}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>
                       {VEHICLE_TYPES.map((vt) => (
                         <SelectItem key={vt.value} value={vt.value}>{vt.label}</SelectItem>
@@ -687,17 +704,17 @@ export default function SellerProducts() {
                 <div className="space-y-3">
                   {compatEntries.map((entry, idx) => (
                     <div key={idx} className="p-3 bg-muted rounded-lg border border-border space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <p className="text-xs font-medium text-muted-foreground">Vehicle {idx + 1}</p>
-                        <button type="button" onClick={() => removeCompatEntry(idx)} className="text-destructive hover:text-destructive/80">
+                        <button type="button" aria-label={`Remove vehicle ${idx + 1}`} onClick={() => removeCompatEntry(idx)} className="flex h-10 w-10 -my-1 -mr-1 shrink-0 items-center justify-center rounded-md text-destructive hover:text-destructive/80">
                           <X className="h-4 w-4" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs">Vehicle Type</Label>
                           <Select value={entry.vehicleType} onValueChange={(v) => updateCompatEntry(idx, "vehicleType", v)}>
-                            <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="text-base sm:text-sm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {VEHICLE_TYPES.map((vt) => (
                                 <SelectItem key={vt.value} value={vt.value}>{vt.label}</SelectItem>
@@ -708,7 +725,7 @@ export default function SellerProducts() {
                         <div>
                           <Label className="text-xs">Brand</Label>
                           <Select value={entry.brand || "__any"} onValueChange={(v) => handleBrandChange(idx, v === '__any' ? '' : v)}>
-                            <SelectTrigger className="text-xs"><SelectValue placeholder="Any brand" /></SelectTrigger>
+                            <SelectTrigger className="text-base sm:text-sm"><SelectValue placeholder="Any brand" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__any">Any Brand</SelectItem>
                               {brands.filter((b: any) => !entry.vehicleType || b.vehicleType?.includes(entry.vehicleType)).map((b: any) => (
@@ -719,11 +736,11 @@ export default function SellerProducts() {
                         </div>
                       </div>
                       {entry.brand && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs">Model</Label>
                             <Select value={entry.vehicleModel || "__any"} onValueChange={(v) => handleModelChange(idx, v === '__any' ? '' : v)}>
-                              <SelectTrigger className="text-xs"><SelectValue placeholder={loadingModels ? "Loading..." : "Any model"} /></SelectTrigger>
+                              <SelectTrigger className="text-base sm:text-sm"><SelectValue placeholder={loadingModels ? "Loading..." : "Any model"} /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__any">Any Model</SelectItem>
                                 {models.map((m: any) => (
@@ -736,7 +753,7 @@ export default function SellerProducts() {
                             <div>
                               <Label className="text-xs">Variant</Label>
                               <Select value={entry.variant || "__any"} onValueChange={(v) => handleVariantChange(idx, v === '__any' ? '' : v)}>
-                                <SelectTrigger className="text-xs"><SelectValue placeholder={loadingVariants ? "Loading..." : "Any variant"} /></SelectTrigger>
+                                <SelectTrigger className="text-base sm:text-sm"><SelectValue placeholder={loadingVariants ? "Loading..." : "Any variant"} /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="__any">Any Variant</SelectItem>
                                   {variants.map((v: any) => (
@@ -748,32 +765,32 @@ export default function SellerProducts() {
                           )}
                         </div>
                       )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs">Year From</Label>
-                          <Input type="number" className="text-xs" placeholder="e.g. 2015" value={entry.yearFrom} onChange={(e) => updateCompatEntry(idx, "yearFrom", e.target.value)} />
+                          <Input type="number" placeholder="e.g. 2015" value={entry.yearFrom} onChange={(e) => updateCompatEntry(idx, "yearFrom", e.target.value)} />
                         </div>
                         <div>
                           <Label className="text-xs">Year To</Label>
-                          <Input type="number" className="text-xs" placeholder="e.g. 2023" value={entry.yearTo} onChange={(e) => updateCompatEntry(idx, "yearTo", e.target.value)} />
+                          <Input type="number" placeholder="e.g. 2023" value={entry.yearTo} onChange={(e) => updateCompatEntry(idx, "yearTo", e.target.value)} />
                         </div>
                       </div>
                       <div>
                         <Label className="text-xs">Notes</Label>
-                        <Input className="text-xs" placeholder="e.g. petrol variants only" value={entry.notes} onChange={(e) => updateCompatEntry(idx, "notes", e.target.value)} />
+                        <Input placeholder="e.g. petrol variants only" value={entry.notes} onChange={(e) => updateCompatEntry(idx, "notes", e.target.value)} />
                       </div>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={addCompatEntry}>
+                  <Button type="button" variant="outline" size="sm" className="min-h-10 w-full sm:w-auto" onClick={addCompatEntry}>
                     <Plus className="h-3 w-3 mr-1" /> Add Another Vehicle
                   </Button>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
-              <Button type="submit" className="flex-1" disabled={saving}>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="w-full min-h-11 sm:w-auto" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
+              <Button type="submit" className="w-full min-h-11 sm:w-auto" disabled={saving}>
                 {saving ? "Saving..." : editingProduct ? "Update Product" : "Create Product"}
               </Button>
             </div>

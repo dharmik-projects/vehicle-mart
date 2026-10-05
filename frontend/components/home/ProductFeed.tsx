@@ -1,42 +1,55 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
+import { FEED_BATCH_SIZE } from "@/lib/feed";
 import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/product/ProductCard";
 import { ProductSkeleton } from "./skeletons";
 
-export const PAGE_SIZE = 12;
+/** Controlled batch size — the feed never dumps the whole catalog. */
+const PAGE_SIZE = FEED_BATCH_SIZE;
 
 interface ProductFeedProps {
   /** First page — fetched server-side so HTML arrives with real products. */
   initialItems: any[];
   initialHasMore: boolean;
+  /** Total product count (for the "Showing X of Y" progress line). */
+  initialTotal: number;
   /** Set when the server-side first-page fetch failed (error + retry UI). */
   initialError: string | null;
 }
 
 /**
- * Infinite product feed. Page 1 comes from the server (no skeleton wait);
- * further pages load only as the sentinel scrolls into view (below the fold).
+ * Controlled product feed with a Load More button.
+ *
+ * Page 1 (8 products) comes from the server (no skeleton wait); each click
+ * fetches the NEXT batch and appends it — existing cards stay on screen,
+ * duplicates are dropped by id, and the button disappears in favour of a
+ * "You've seen all products" note once pagination reports no next page.
  */
 export default function ProductFeed({
   initialItems,
   initialHasMore,
+  initialTotal,
   initialError,
 }: ProductFeedProps) {
   const [feed, setFeed] = useState<any[]>(initialItems);
   const [feedPage, setFeedPage] = useState(2);
   const [hasMore, setHasMore] = useState(initialHasMore && !initialError);
+  const [total, setTotal] = useState(initialTotal);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(initialError);
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const inFlight = useRef(false);
   const seenIds = useRef<Set<string>>(new Set(initialItems.map((p) => p?._id).filter(Boolean)));
 
-  /* Load one page (deduped, no duplicate requests) */
+  useEffect(() => {
+    setTotal((prev) => prev || initialTotal);
+  }, [initialTotal]);
+
+  /* Load one batch (deduped, no duplicate requests) */
   const loadFeedPage = useCallback(async (page: number) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -50,6 +63,7 @@ export default function ProductFeed({
       setFeed((prev) => (fresh.length ? [...prev, ...fresh] : prev));
 
       const meta = data.pagination || {};
+      if (typeof meta.total === "number") setTotal(meta.total);
       const more =
         typeof meta.hasNextPage === "boolean"
           ? meta.hasNextPage
@@ -58,45 +72,36 @@ export default function ProductFeed({
       setFeedPage(page + 1);
     } catch (err: any) {
       setFeedError(err?.message || "Could not load products.");
-      setHasMore(false);
+      setHasMore(true); // keep Load More available so the user can retry
     } finally {
       inFlight.current = false;
       setFeedLoading(false);
     }
   }, []);
 
-  /* IntersectionObserver → append next page when the sentinel is near view */
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasMore || feedLoading) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadFeedPage(feedPage);
-      },
-      { rootMargin: "600px 0px" }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, feedLoading, feedPage, loadFeedPage]);
+  const retryLoadMore = useCallback(() => {
+    setFeedError(null);
+    loadFeedPage(feedPage);
+  }, [feedPage, loadFeedPage]);
 
   return (
     <>
       {feed.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 min-[1700px]:grid-cols-5">
           {feed.map((p) => (
             <ProductCard key={p._id} product={p} />
           ))}
-          {/* skeletons fill remaining first-page slots while a page loads */}
+          {/* skeletons fill remaining batch slots while a page loads */}
           {feedLoading &&
-            Array(Math.min(PAGE_SIZE - feed.length, 5) > 0 ? Math.min(PAGE_SIZE - feed.length, 5) : 0)
+            Array(Math.min(PAGE_SIZE, 4))
               .fill(0)
               .map((_, i) => (
                 <ProductSkeleton key={`sk-${i}`} />
               ))}
         </div>
       ) : feedLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {Array(10)
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6 min-[1700px]:grid-cols-5">
+          {Array(PAGE_SIZE)
             .fill(0)
             .map((_, i) => (
               <ProductSkeleton key={i} />
@@ -128,19 +133,44 @@ export default function ProductFeed({
         </div>
       )}
 
-      {/* Sentinel: fetch the next page when it scrolls into view */}
-      <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+      {/* ── Controlled loading: Load More / progress / end of catalog ── */}
+      {feed.length > 0 && (
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            Showing {feed.length}
+            {total > 0 ? ` of ${total}` : ""} {total === 1 ? "product" : "products"}
+          </p>
 
-      {feedLoading && feed.length > 0 && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading more products…
+          {feedError && feed.length > 0 ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-destructive">{feedError}</p>
+              <Button variant="outline" className="min-h-11 px-6" onClick={retryLoadMore}>
+                Retry
+              </Button>
+            </div>
+          ) : hasMore ? (
+            <Button
+              variant="outline"
+              className="min-h-11 gap-1.5 px-7 text-[15px]"
+              onClick={() => loadFeedPage(feedPage)}
+              disabled={feedLoading}
+            >
+              {feedLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                </>
+              ) : (
+                <>
+                  Load More <ChevronDown className="h-4 w-4" aria-hidden />
+                </>
+              )}
+            </Button>
+          ) : (
+            <p className="border-t border-border pt-5 text-sm text-muted-foreground">
+              You&apos;ve seen all products
+            </p>
+          )}
         </div>
-      )}
-
-      {!hasMore && feed.length > 0 && (
-        <p className="mt-8 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          You&apos;ve seen all {feed.length} {feed.length === 1 ? "product" : "products"}.
-        </p>
       )}
     </>
   );

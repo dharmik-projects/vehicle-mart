@@ -3,39 +3,41 @@
 @tailwind utilities;
 
 /* =========================================================
-   VEHICLEPART DESIGN SYSTEM — "MINIMAL NEUTRAL"
-   White / soft grey / charcoal. No strong brand color.
+   VEHICLEPART DESIGN SYSTEM — "PREMIUM MARKETPLACE"
+   Soft-grey page + white surfaces = instant hierarchy.
+   Charcoal text/buttons, subtle borders, quiet shadows,
+   one restrained accent (amber rating stars).
    Status colors (green / amber / red) are functional only.
    ========================================================= */
 
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 0 0% 100%;            /* white */
-    --foreground: 220 9% 12%;           /* charcoal */
+    /* Surfaces — soft grey page, white cards */
+    --background: 220 16% 97%;          /* soft grey page canvas */
+    --foreground: 220 15% 10%;          /* deep charcoal text */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 9% 12%;
+    --card: 0 0% 100%;                  /* white surface */
+    --card-foreground: 220 15% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 9% 12%;
+    --popover-foreground: 220 15% 10%;
 
     /* Primary = charcoal (the one strong neutral) */
-    --primary: 220 9% 12%;
+    --primary: 220 15% 10%;
     --primary-foreground: 0 0% 100%;
 
     /* Accent alias = same charcoal (subtle dark accent, no brand hue) */
-    --brand: 220 9% 12%;
+    --brand: 220 15% 10%;
     --brand-foreground: 0 0% 100%;
 
-    --secondary: 220 12% 96%;           /* soft grey fill */
-    --secondary-foreground: 220 9% 12%;
+    --secondary: 220 12% 95%;           /* soft grey fill */
+    --secondary-foreground: 220 15% 10%;
 
-    --muted: 220 12% 96%;               /* soft grey */
-    --muted-foreground: 220 8% 46%;     /* grey text */
+    --muted: 220 12% 94%;               /* inputs / skeletons */
+    --muted-foreground: 220 8% 44%;     /* secondary text */
 
-    --accent: 220 12% 95%;              /* subtle hover fill */
-    --accent-foreground: 220 9% 12%;
+    --accent: 220 12% 94%;              /* subtle hover fill */
+    --accent-foreground: 220 15% 10%;
 
     /* Status (functional only) */
     --destructive: 0 72% 45%;
@@ -45,18 +47,18 @@
     --warning: 30 80% 40%;
     --warning-foreground: 0 0% 100%;
 
-    /* Lines */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 220 9% 12%;
+    /* Lines — crisp but quiet */
+    --border: 220 14% 89%;
+    --input: 220 14% 89%;
+    --ring: 220 15% 10%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;                 /* 10px — consistent premium radius */
 
-    /* Elevation — quiet */
-    --shadow-1: 0 1px 2px rgba(16, 18, 22, 0.05);
-    --shadow-2: 0 2px 8px -2px rgba(16, 18, 22, 0.08), 0 1px 2px rgba(16, 18, 22, 0.04);
-    --shadow-3: 0 10px 24px -8px rgba(16, 18, 22, 0.14), 0 2px 6px -2px rgba(16, 18, 22, 0.06);
-    --shadow-brand: 0 1px 2px rgba(16, 18, 22, 0.1);
+    /* Elevation — quiet at rest, soft lift on hover */
+    --shadow-1: 0 1px 2px rgba(17, 20, 26, 0.05), 0 1px 1px rgba(17, 20, 26, 0.02);
+    --shadow-2: 0 4px 12px -4px rgba(17, 20, 26, 0.1), 0 2px 4px -2px rgba(17, 20, 26, 0.05);
+    --shadow-3: 0 16px 40px -12px rgba(17, 20, 26, 0.18), 0 4px 12px -4px rgba(17, 20, 26, 0.08);
+    --shadow-brand: 0 1px 2px rgba(17, 20, 26, 0.12);
   }
 
   * {
@@ -187,20 +189,49 @@
 @layer components {
   /* --- Shell --- */
   .vp-container {
-    @apply mx-auto w-full max-w-[1360px] px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[1760px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Wider shell for product listing / large grids (sidebar layouts) */
+  .vp-wide {
+    @apply mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Content cap for sidebar layouts (admin/seller) — comfortable at 1440/1920 */
+  .vp-main {
+    @apply mx-auto w-full max-w-[1760px];
   }
 
   .vp-section {
     @apply py-10 sm:py-14 lg:py-16;
   }
 
-  /* --- Surface card --- */
+  /* --- Controlled horizontal scroll (tables, dense rows) on small screens.
+     Never let a table push the PAGE sideways — only this container scrolls. --- */
+  .vp-table-scroll {
+    @apply -mx-1 overflow-x-auto px-1;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .vp-table-scroll::-webkit-scrollbar { height: 8px; }
+
+  /* --- Horizontal swipe row (carousels): one row, no wrap, hidden bar --- */
+  .vp-swipe {
+    @apply flex overflow-x-auto no-scrollbar;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+
+  /* --- Surface card: quiet resting shadow, soft lift on hover --- */
   .vp-card {
     @apply rounded-lg border border-border bg-card;
+    box-shadow: var(--shadow-1);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .vp-card-hover:hover {
-    border-color: hsl(var(--foreground) / 0.25);
+    border-color: hsl(var(--foreground) / 0.22);
     box-shadow: var(--shadow-2);
   }
 
@@ -209,9 +240,14 @@
     @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground;
   }
 
-  /* --- Section heading --- */
+  /* --- Section heading (display font for hierarchy) --- */
   .vp-heading {
-    @apply text-[22px] sm:text-[28px] font-semibold tracking-tight text-foreground;
+    @apply font-display text-[22px] sm:text-[28px] font-semibold tracking-tight text-foreground;
+  }
+
+  /* --- Page title (single canonical pattern across store pages) --- */
+  .vp-page-title {
+    @apply font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl;
   }
 
   /* --- Buttons --- */
@@ -222,6 +258,7 @@
   }
   .vp-btn-ink {
     @apply vp-btn bg-primary text-primary-foreground;
+    box-shadow: var(--shadow-brand);
   }
   .vp-btn-ink:hover { background: hsl(var(--primary) / 0.9); }
 

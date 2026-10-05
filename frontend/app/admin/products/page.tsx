@@ -109,19 +109,19 @@ export default function AdminProductsPage() {
   };
 
   return (
-    <div className="space-y-5 fade-in">
-      <div className="flex items-center justify-between">
+    <div className="vp-main space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Products Management</h1>
-        <Badge variant="outline">{pagination?.total || 0} products</Badge>
+        <Badge variant="outline" className="self-start sm:self-auto">{pagination?.total || 0} products</Badge>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, SKU, or brand..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Search by name, SKU, or brand..." className="pl-9 h-11" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter || "__all"} onValueChange={(v) => { setStatusFilter(v === "__all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all">All Status</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
@@ -131,9 +131,10 @@ export default function AdminProductsPage() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-lg border border-border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      {/* Desktop (md+): table */}
+      <div className="hidden md:block bg-card rounded-lg border border-border">
+          <div className="vp-table-scroll">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Product</th>
@@ -223,12 +224,95 @@ export default function AdminProductsPage() {
           </div>
       </div>
 
+      {/* Mobile: compact cards */}
+      <div className="md:hidden space-y-3">
+        {products.map((p) => (
+          <div key={p._id} className="bg-card rounded-lg border border-border p-4 space-y-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 bg-muted rounded overflow-hidden shrink-0">
+                {p.images?.[0]?.url ? (
+                  <img src={thumbUrl(p.images[0].url, 96)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs">📦</div>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground truncate">{p.name}</p>
+                <p className="text-xs text-muted-foreground truncate">SKU: {p.sku}</p>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Price</span>
+                <span className="text-right min-w-0">
+                  <span className="font-medium text-foreground">{formatPrice(p.price)}</span>
+                  {p.mrp > p.price && <span className="text-xs text-muted-foreground line-through ml-1.5">{formatPrice(p.mrp)}</span>}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Stock</span>
+                <span className={`font-semibold ${p.stock <= 5 ? "text-destructive" : "text-foreground"}`}>{p.stock}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Seller</span>
+                <span className="text-foreground truncate text-right min-w-0">{p.seller?.name || "—"}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Status</span>
+                <span className="flex flex-wrap gap-1 justify-end">
+                  <Badge variant={statusBadgeVariant(p.isApproved ? "active" : "pending")}>
+                    {p.isApproved ? "Approved" : "Pending"}
+                  </Badge>
+                  {!p.isActive && <Badge variant="secondary">Inactive</Badge>}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {!p.isApproved && p.isActive && (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => handleApprove(p._id)} title="Approve" disabled={busyId === p._id} className="min-h-10 min-w-10">
+                    {busyId === p._id && busyAction === "approve"
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Check className="h-4 w-4 text-success" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleReject(p._id)} title="Reject" disabled={busyId === p._id} className="min-h-10 min-w-10">
+                    {busyId === p._id && busyAction === "reject"
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <XIcon className="h-4 w-4 text-destructive" />}
+                  </Button>
+                </>
+              )}
+              <Link href={`/products/${p.slug}`} className="inline-flex">
+                <Button size="sm" variant="ghost" title="View" className="min-h-10 min-w-10"><Eye className="h-4 w-4 text-muted-foreground" /></Button>
+              </Link>
+              <Button size="sm" variant="ghost" onClick={() => handleToggle(p._id)} title="Toggle active" disabled={busyId === p._id} className="min-h-10 min-w-10">
+                {busyId === p._id && busyAction === "toggle" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : p.isActive ? (
+                  <Ban className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 text-success" />
+                )}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => handleDelete(p._id)} title="Delete" disabled={busyId === p._id} className="min-h-10 min-w-10">
+                {busyId === p._id && busyAction === "delete"
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Trash2 className="h-4 w-4 text-destructive" />}
+              </Button>
+            </div>
+          </div>
+        ))}
+        {products.length === 0 && (
+          <div className="text-center py-10 bg-card border border-border rounded-lg text-sm text-muted-foreground">No products found</div>
+        )}
+      </div>
+
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="min-h-10">Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="min-h-10">Next</Button>
           </div>
         </div>
       )}

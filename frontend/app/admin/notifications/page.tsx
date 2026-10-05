@@ -46,8 +46,8 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <div className="space-y-5 fade-in">
-      <div className="flex items-center justify-between">
+    <div className="vp-main space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Notifications</h1>
           <p className="text-sm text-muted-foreground">{pagination?.total || 0} total notifications</p>
@@ -67,18 +67,18 @@ export default function AdminNotificationsPage() {
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{n.title}</p>
-                    {!n.isRead && <Badge variant="secondary" className="text-xs">New</Badge>}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-foreground break-words min-w-0">{n.title}</p>
+                    {!n.isRead && <Badge variant="secondary" className="text-xs shrink-0">New</Badge>}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5 break-words">{n.message}</p>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
                     <span className="text-xs text-muted-foreground">{formatDateTime(n.createdAt)}</span>
-                    {n.user && <span className="text-xs text-muted-foreground">→ {n.user.name || n.user.email}</span>}
+                    {n.user && <span className="text-xs text-muted-foreground break-all">→ {n.user.name || n.user.email}</span>}
                   </div>
                 </div>
                 {!n.isRead && (
-                  <Button size="sm" variant="ghost" onClick={() => handleMarkRead(n._id)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                  <Button size="sm" variant="ghost" onClick={() => handleMarkRead(n._id)} title="Mark as read" className="shrink-0 min-h-10 min-w-10 text-muted-foreground hover:text-foreground">
                     <Check className="h-4 w-4" />
                   </Button>
                 )}
@@ -98,11 +98,11 @@ export default function AdminNotificationsPage() {
       </div>
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg">Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg">Next</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg min-h-10">Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg min-h-10">Next</Button>
           </div>
         </div>
       )}

@@ -57,25 +57,25 @@ export default function SellerPayouts() {
   ];
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Payouts & Earnings</h1>
         <p className="text-sm text-muted-foreground">Track your earnings and manage bank details</p>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => <div key={i} className="vp-stat"><div className="animate-pulse space-y-2"><div className="h-4 bg-muted rounded w-1/2" /><div className="h-8 bg-muted rounded w-1/3" /></div></div>)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {earningsCards.map((s, i) => (
             <div key={i} className="vp-stat">
               <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-muted p-2.5"><s.icon className="h-5 w-5 text-foreground" /></div>
+                <div className="rounded-lg bg-muted p-2.5 shrink-0"><s.icon className="h-5 w-5 text-foreground" /></div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs text-muted-foreground">{s.label}</p>
-                  <p className="text-base sm:text-xl font-bold text-foreground">{s.value}</p>
+                  <p className="truncate text-xs sm:text-[13px] text-muted-foreground">{s.label}</p>
+                  <p className="text-lg sm:text-xl font-bold tabular-nums text-foreground">{s.value}</p>
                 </div>
               </div>
             </div>
@@ -83,23 +83,23 @@ export default function SellerPayouts() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border bg-card p-5">
+      <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="rounded-lg bg-muted p-1.5">
             <CreditCard className="h-4 w-4 text-foreground" />
           </div>
           <h3 className="text-sm font-semibold text-foreground">Bank Details</h3>
         </div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><Label className="text-xs">Account Holder</Label><Input value={bankForm.accountHolder} onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })} className="mt-1 h-9" /></div>
-            <div><Label className="text-xs">Bank Name</Label><Input value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} className="mt-1 h-9" /></div>
+        <div className="space-y-3 max-w-3xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div><Label className="text-xs">Account Holder</Label><Input value={bankForm.accountHolder} onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })} className="mt-1" /></div>
+            <div><Label className="text-xs">Bank Name</Label><Input value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} className="mt-1" /></div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><Label className="text-xs">Account Number</Label><Input value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} className="mt-1 h-9" /></div>
-            <div><Label className="text-xs">IFSC Code</Label><Input value={bankForm.ifscCode} onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })} className="mt-1 h-9" /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div><Label className="text-xs">Account Number</Label><Input value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} className="mt-1" /></div>
+            <div><Label className="text-xs">IFSC Code</Label><Input value={bankForm.ifscCode} onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value })} className="mt-1" /></div>
           </div>
-          <Button onClick={handleSaveBank} className="rounded-lg"><Save className="h-4 w-4 mr-2" /> Save Bank Details</Button>
+          <Button onClick={handleSaveBank} className="w-full min-h-11 rounded-lg sm:w-auto"><Save className="h-4 w-4 mr-2" /> Save Bank Details</Button>
         </div>
       </div>
     </div>

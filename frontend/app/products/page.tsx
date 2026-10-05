@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Star, Grid, List, SlidersHorizontal, X, Package, Loader2 } from "lucide-react";
+import { Star, Grid, List, SlidersHorizontal, X, Package, Loader2, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { cached } from "@/lib/cache";
 import { thumbUrl } from "@/lib/images";
@@ -23,6 +23,9 @@ const PRICE_PRESETS = [
 ];
 
 const RATING_FILTERS = [4, 3, 2, 1];
+
+/** Controlled batch size — the catalog loads 8 products at a time. */
+const PAGE_SIZE = 8;
 
 const VEHICLE_TYPES = [
   { label: "All Types", value: "" },
@@ -66,7 +69,6 @@ interface Filters {
   year: string;
   seller: string;
   sort: string;
-  page: string;
 }
 
 /* Filters ⇄ query string, in ONE canonical form (sorted keys, empty values
@@ -90,7 +92,6 @@ const filtersFromSearch = (search: string): Filters => {
     year: get("year"),
     seller: get("seller"),
     sort: get("sort") || (get("q") ? "relevance" : "popular"),
-    page: get("page") || "1",
   };
 };
 
@@ -113,6 +114,8 @@ function ProductsContent() {
   const [sellers, setSellers] = useState<any[]>([]);
   const [pagination, setPagination] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -148,8 +151,9 @@ function ProductsContent() {
     inFlightRef.current = { key, seq };
     setLoading(true);
     setError(null);
+    setMoreError(null);
     try {
-      const params: any = {};
+      const params: any = { limit: String(PAGE_SIZE) };
       Object.entries(filters).forEach(([key2, value]) => {
         if (value) params[key2] = value;
       });
@@ -168,6 +172,48 @@ function ProductsContent() {
   }, [filters]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  /* ── Load More — fetches the next batch of PAGE_SIZE and APPENDS it.
+      A seq guard ties the response to the filter-generation it started in,
+      so changing a filter mid-flight drops the stale append instead of
+      mixing lists. Duplicates are dropped by id. ── */
+  const loadMoreRef = useRef(false);
+  const loadMore = useCallback(async () => {
+    if (loadMoreRef.current || loading) return;
+    const seq = fetchSeqRef.current;
+    loadMoreRef.current = true;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const nextPage = (pagination.page || 1) + 1;
+      const params: any = { limit: String(PAGE_SIZE), page: String(nextPage) };
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v) params[k] = v;
+      });
+      const data = await api.getProducts(params);
+      if (seq !== fetchSeqRef.current) return; // filters changed mid-flight
+      const incoming: any[] = data.products || [];
+      setProducts((prev) => {
+        const seen = new Set(prev.map((p) => String(p._id)));
+        const fresh = incoming.filter((p) => p?._id && !seen.has(String(p._id)));
+        return fresh.length ? [...prev, ...fresh] : prev;
+      });
+      setPagination((prev: any) => {
+        const meta = data.pagination || prev || {};
+        // Defensive: a page that returns nothing ends the list even if the
+        // backend meta still claims otherwise.
+        if (incoming.length === 0) return { ...meta, hasNextPage: false };
+        return meta;
+      });
+    } catch (err: any) {
+      if (seq === fetchSeqRef.current) {
+        setMoreError(err?.message || "Could not load more products.");
+      }
+    } finally {
+      loadMoreRef.current = false;
+      if (seq === fetchSeqRef.current) setLoadingMore(false);
+    }
+  }, [filters, loading, pagination.page]);
 
   /* Sync FROM the URL — header search while already on /products, browser
      back/forward or any other external navigation re-parses into filter state
@@ -229,31 +275,24 @@ function ProductsContent() {
     /* Changing vehicle type/make invalidates narrower vehicle selections */
     if (key === 'vehicleType') patch = { ...patch, vehicleBrand: '', vehicleModel: '', vehicleVariant: '' };
     if (key === 'vehicleBrand') patch = { ...patch, vehicleModel: '', vehicleVariant: '' };
-    const newFilters: Filters = {
-      ...filters,
-      ...patch,
-      // Any filter/search/sort change resets to page 1; explicit page changes keep their page.
-      ...(key === 'page' ? {} : { page: '1' }),
-    };
-    applyFilters(newFilters);
+    applyFilters({ ...filters, ...patch }); // any change restarts from the first batch
   };
 
   const updateFilters = (patch: Partial<Filters>) => {
-    const newFilters = { ...filters, ...patch, page: '1' };
-    applyFilters(newFilters);
+    applyFilters({ ...filters, ...patch });
   };
 
   const clearFilters = () => {
     applyFilters({
       q: '', category: '', brand: '', vehicleType: '', vehicleBrand: '',
       vehicleModel: '', vehicleVariant: '', year: '', seller: '',
-      minPrice: '', maxPrice: '', rating: '', inStock: '', sort: 'popular', page: '1',
+      minPrice: '', maxPrice: '', rating: '', inStock: '', sort: 'popular',
     });
   };
 
   /* vehicleModel/vehicleVariant are hidden — their values are raw ObjectIds */
   const activeFilters = Object.entries(filters).filter(
-    ([k, v]) => v && k !== 'sort' && k !== 'page' && k !== 'q'
+    ([k, v]) => v && k !== 'sort' && k !== 'q'
       && k !== 'vehicleModel' && k !== 'vehicleVariant'
   );
   const hasActiveFilters = activeFilters.length > 0;
@@ -299,45 +338,45 @@ function ProductsContent() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8 fade-in">
+    <div className="vp-wide py-6 sm:py-8 fade-in">
       {/* Mobile filter overlay */}
       {showFilters && (
-        <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setShowFilters(false)} />
+        <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setShowFilters(false)} />
       )}
 
       {/* Page title */}
-      <div className="mb-4">
-        <h1 className="text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">
+      <div className="mb-4 min-w-0">
+        <h1 className="text-xl font-bold tracking-tight text-foreground break-words sm:text-2xl">
           {filters.q ? <>Results for “{filters.q}”</> : selectedCategoryName ? selectedCategoryName : "All Parts"}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 truncate text-sm text-muted-foreground">
           {loading && products.length === 0
             ? "Loading…"
             : `${pagination.total || 0} ${pagination.total === 1 ? "product" : "products"}`}
         </p>
       </div>
 
-      <div className="flex flex-col gap-6 md:flex-row">
+      <div className="flex flex-col gap-6 lg:flex-row">
         {/* Filters Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs border-r border-border bg-card transition-transform duration-200 md:sticky md:top-20 md:z-auto md:block md:w-56 md:shrink-0 md:translate-x-0 md:border md:rounded-lg ${
+          className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs border-r border-border bg-card transition-transform duration-200 lg:sticky lg:top-20 lg:z-auto lg:block lg:w-56 lg:shrink-0 lg:translate-x-0 lg:border lg:rounded-lg ${
             showFilters ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="h-full space-y-4 overflow-y-auto p-4 md:max-h-[calc(100vh-6rem)] md:p-4">
-            <div className="flex items-center justify-between">
+          <div className="h-full space-y-4 overflow-y-auto p-4 lg:max-h-[calc(100vh-6rem)] lg:p-4">
+            <div className="flex items-center justify-between gap-2">
               <h3 className="text-[13px] font-bold uppercase tracking-[0.08em] text-foreground">Filters</h3>
               <button
                 onClick={() => setShowFilters(false)}
                 aria-label="Close filters"
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+                className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              <button onClick={clearFilters} className="inline-flex min-h-10 items-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                 Clear all filters
               </button>
             )}
@@ -349,7 +388,7 @@ function ProductsContent() {
                   <button
                     key={vt.value}
                     onClick={() => updateFilter('vehicleType', vt.value)}
-                    className={`block w-full rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
+                    className={`flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
                       filters.vehicleType === vt.value
                         ? 'bg-primary font-medium text-primary-foreground'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -443,7 +482,7 @@ function ProductsContent() {
                     <button
                       key={preset.label}
                       onClick={() => updateFilters({ minPrice: preset.min, maxPrice: preset.max })}
-                      className={`rounded-md border px-3 py-2 text-xs transition-colors ${
+                      className={`min-h-10 rounded-md border px-3 py-2 text-xs transition-colors ${
                         isActive ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                       }`}
                     >
@@ -459,7 +498,7 @@ function ProductsContent() {
               <div className="space-y-0.5">
                 <button
                   onClick={() => updateFilter('rating', '')}
-                  className={`block w-full rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
+                  className={`flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
                     !filters.rating ? 'bg-primary font-medium text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
@@ -469,12 +508,12 @@ function ProductsContent() {
                   <button
                     key={r}
                     onClick={() => updateFilter('rating', String(r))}
-                    className={`flex w-full items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
+                    className={`flex w-full min-h-10 items-center gap-1.5 rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
                       filters.rating === String(r) ? 'bg-primary font-medium text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
                     <span>{r}</span>
-                    <Star className={`h-3 w-3 ${filters.rating === String(r) ? 'fill-current text-current' : 'fill-foreground/70 text-foreground/70'}`} />
+                    <Star className={`h-3 w-3 ${filters.rating === String(r) ? 'fill-current text-current' : 'fill-warning text-warning'}`} />
                     <span className="opacity-70">&amp; up</span>
                   </button>
                 ))}
@@ -486,7 +525,7 @@ function ProductsContent() {
               <div className="space-y-0.5">
                 <button
                   onClick={() => updateFilter('inStock', '')}
-                  className={`block w-full rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
+                  className={`flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
                     !filters.inStock ? 'bg-primary font-medium text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
@@ -494,7 +533,7 @@ function ProductsContent() {
                 </button>
                 <button
                   onClick={() => updateFilter('inStock', 'true')}
-                  className={`block w-full rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
+                  className={`flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors ${
                     filters.inStock === 'true' ? 'bg-primary font-medium text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
@@ -508,32 +547,32 @@ function ProductsContent() {
         {/* Products Grid */}
         <div className="min-w-0 flex-1">
           {/* Top bar */}
-          <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex h-10 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:hidden"
+              className="flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3.5 text-sm font-medium text-foreground transition-colors hover:bg-muted lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4" /> Filters
             </button>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex flex-1 items-center justify-end gap-2">
               <div className="hidden overflow-hidden rounded-lg border border-border md:flex">
                 <button
                   onClick={() => setViewMode('grid')}
                   aria-label="Grid view"
-                  className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                  className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                 >
                   <Grid className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
                   aria-label="List view"
-                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                  className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                 >
                   <List className="h-4 w-4" />
                 </button>
               </div>
               <Select value={filters.sort} onValueChange={(v) => updateFilter('sort', v)}>
-                <SelectTrigger className="w-40 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="min-w-0 text-sm sm:w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="relevance">Relevance</SelectItem>
                   <SelectItem value="popular">Most Popular</SelectItem>
@@ -550,10 +589,10 @@ function ProductsContent() {
           {hasActiveFilters && (
             <div className="mb-4 flex flex-wrap gap-1.5">
               {activeFilters.map(([key, value]) => (
-                <Badge key={key} variant="secondary" className="gap-1 rounded-md pr-1 text-xs">
-                  {FILTER_LABELS[key] || key}: {filterValueLabel(key, value as string)}
-                  <button onClick={() => updateFilter(key, '')} aria-label={`Remove ${FILTER_LABELS[key] || key} filter`} className="ml-0.5 hover:text-foreground">
-                    <X className="h-3 w-3" />
+                <Badge key={key} variant="secondary" className="min-h-10 gap-1 rounded-md pl-3 pr-0 text-xs">
+                  <span className="min-w-0 break-words py-1">{FILTER_LABELS[key] || key}: {filterValueLabel(key, value as string)}</span>
+                  <button onClick={() => updateFilter(key, '')} aria-label={`Remove ${FILTER_LABELS[key] || key} filter`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </Badge>
               ))}
@@ -564,15 +603,16 @@ function ProductsContent() {
               refresh keeps the previous results on screen (dimmed) instead of
               blanking the grid. */}
           {loading && products.length === 0 ? (
-            <div className={`${viewMode === 'grid' ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4' : 'flex flex-col gap-3'}`}>
-              {Array(viewMode === 'grid' ? 9 : 4).fill(0).map((_, i) => (
+            <div className={`${viewMode === 'grid' ? 'grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6 2xl:grid-cols-4' : 'flex flex-col gap-3'}`}>
+              {Array(viewMode === 'grid' ? PAGE_SIZE : 4).fill(0).map((_, i) => (
                 viewMode === 'grid' ? (
-                  <div key={i} className="overflow-hidden rounded-lg border border-border bg-card">
-                    <Skeleton className="aspect-square rounded-none" />
+                  <div key={i} className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+                    <Skeleton className="aspect-[4/3] rounded-none" />
                     <div className="space-y-2.5 p-3.5">
                       <Skeleton className="h-2.5 w-14" />
                       <Skeleton className="h-3.5 w-full" />
                       <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-9 w-full rounded-lg" />
                     </div>
                   </div>
                 ) : (
@@ -601,13 +641,13 @@ function ProductsContent() {
                   <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…
                 </p>
               )}
-              <div className={`${viewMode === 'grid' ? 'grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 xl:grid-cols-4' : 'flex flex-col gap-3'}${loading ? ' opacity-60 transition-opacity' : ' transition-opacity'}`}>
+              <div className={`${viewMode === 'grid' ? 'grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6 2xl:grid-cols-4' : 'flex flex-col gap-3'}${loading ? ' opacity-60 transition-opacity' : ' transition-opacity'}`}>
                 {products.map((product) => (
                   viewMode === 'grid' ? (
                     <ProductCard key={product._id} product={product} />
                   ) : (
                     <Link key={product._id} href={`/products/${product.slug}`} className="group">
-                      <div className="flex gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/25">
+                      <div className="vp-card vp-card-hover flex gap-3 p-4 transition-colors sm:gap-4">
                         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
                           {product.images?.[0]?.url ? (
                             <img src={thumbUrl(product.images[0].url, 320)} alt={product.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
@@ -618,18 +658,18 @@ function ProductsContent() {
                         <div className="min-w-0 flex-1">
                           <p className="text-xs uppercase tracking-wider text-muted-foreground">{product.brand}</p>
                           <h3 className="mt-0.5 line-clamp-2 text-[15px] font-medium text-foreground group-hover:underline">{product.name}</h3>
-                          <div className="mt-1.5 flex items-center gap-2">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                             {product.averageRating > 0 && (
                               <div className="flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5">
                                 <span className="text-xs font-semibold text-foreground">{product.averageRating}</span>
-                                <Star className="h-3 w-3 fill-foreground/70 text-foreground/70" />
+                                <Star className="h-3 w-3 fill-warning text-warning" />
                               </div>
                             )}
                             {product.stock > 0 && product.stock <= 5 && (
                               <span className="text-xs font-medium text-warning">Only {product.stock} left</span>
                             )}
                           </div>
-                          <div className="mt-2 flex items-baseline gap-2">
+                          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                             <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
                             {product.mrp > product.price && (
                               <span className="text-xs text-muted-foreground line-through">{formatPrice(product.mrp)}</span>
@@ -645,32 +685,43 @@ function ProductsContent() {
                 ))}
               </div>
 
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5">
-                  {Number(filters.page) > 1 && (
-                    <Button variant="outline" size="sm" onClick={() => updateFilter('page', String(Number(filters.page) - 1))}>
-                      Previous
+              {/* Controlled loading — Load More (8 at a time) */}
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Showing {products.length}
+                  {pagination.total > 0 ? ` of ${pagination.total}` : ""}{" "}
+                  {pagination.total === 1 ? "product" : "products"}
+                </p>
+                {moreError ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm text-destructive">{moreError}</p>
+                    <Button variant="outline" className="min-h-11 px-6" onClick={loadMore}>
+                      Retry
                     </Button>
-                  )}
-                  {Array.from({ length: Math.min(pagination.totalPages, 10) }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={page === Number(filters.page) ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => updateFilter('page', String(page))}
-                      className="min-w-[36px]"
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                  {Number(filters.page) < pagination.totalPages && (
-                    <Button variant="outline" size="sm" onClick={() => updateFilter('page', String(Number(filters.page) + 1))}>
-                      Next
-                    </Button>
-                  )}
-                </div>
-              )}
+                  </div>
+                ) : pagination.hasNextPage ? (
+                  <Button
+                    variant="outline"
+                    className="min-h-11 gap-1.5 px-7 text-[15px]"
+                    onClick={loadMore}
+                    disabled={loading || loadingMore}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                      </>
+                    ) : (
+                      <>
+                        Load More <ChevronDown className="h-4 w-4" aria-hidden />
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <p className="border-t border-border pt-5 text-sm text-muted-foreground">
+                    You&apos;ve seen all products
+                  </p>
+                )}
+              </div>
             </>
           ) : (
             <div className="vp-empty">
@@ -688,7 +739,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-7xl space-y-4 px-4 py-6"><Skeleton className="h-7 w-48" /><Skeleton className="h-96" /></div>}>
+    <Suspense fallback={<div className="vp-wide space-y-4 py-6 fade-in"><Skeleton className="h-7 w-48" /><Skeleton className="h-96" /></div>}>
       <ProductsContent />
     </Suspense>
   );

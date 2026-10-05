@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Car, Bike, ArrowRight } from "lucide-react";
+import { Car, Bike, Truck, Tractor, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import { cached } from "@/lib/cache";
 import SectionHead from "./SectionHead";
 
-/* Cars first, then 2-wheelers — the marketplace focus */
+/* Cars first, then 2-wheelers, then the commercial / farm / EV types —
+   every card below is built from real MongoDB vehicle data per type. */
 const TYPES = [
   {
     value: "car",
@@ -24,76 +25,102 @@ const TYPES = [
     modelsKey: "sbv:models:2w",
     modelsQuery: "/vehicles/models?vehicleType=2-wheeler",
   },
+  {
+    value: "truck",
+    label: "Trucks",
+    desc: "LCVs, pickups & haulers",
+    Icon: Truck,
+    brandsKey: "sbv:brands:truck",
+    modelsKey: "sbv:models:truck",
+    modelsQuery: "/vehicles/models?vehicleType=truck",
+  },
+  {
+    value: "tractor",
+    label: "Tractors",
+    desc: "Farm tractors & implements",
+    Icon: Tractor,
+    brandsKey: "sbv:brands:tractor",
+    modelsKey: "sbv:models:tractor",
+    modelsQuery: "/vehicles/models?vehicleType=tractor",
+  },
+  {
+    value: "ev",
+    label: "EVs",
+    desc: "Electric cars, scooters & more",
+    Icon: Zap,
+    brandsKey: "sbv:brands:ev",
+    modelsKey: "sbv:models:ev",
+    modelsQuery: "/vehicles/models?vehicleType=ev",
+  },
 ];
 
 /**
- * "Shop by Vehicle" — two large entry cards (Cars / Bikes) built from real
- * MongoDB vehicle data: brand + model counts per type and the actual brand
- * names. Renders nothing when a type has no vehicle data.
+ * "Shop by Vehicle" — entry cards (Cars / Bikes on phones, all five types
+ * from Trucks…EV on tablet, a single 5-across row on desktop) built from
+ * real MongoDB vehicle data: brand + model counts and actual brand names.
+ * Renders nothing when no type has any vehicle data.
  */
 export default async function ShopByVehicle() {
-  const [carBrands, bikeBrands, carModels, bikeModels] = await Promise.all([
-    cached(TYPES[0].brandsKey, () => api.getBrands(TYPES[0].value)).catch(() => ({ brands: [] as any[] })),
-    cached(TYPES[1].brandsKey, () => api.getBrands(TYPES[1].value)).catch(() => ({ brands: [] as any[] })),
-    cached(TYPES[0].modelsKey, () => api.fetch(TYPES[0].modelsQuery)).catch(() => ({ models: [] as any[] })),
-    cached(TYPES[1].modelsKey, () => api.fetch(TYPES[1].modelsQuery)).catch(() => ({ models: [] as any[] })),
-  ]);
+  const results = await Promise.all(
+    TYPES.map(async (t) => {
+      const [brandsRes, modelsRes] = await Promise.all([
+        cached(t.brandsKey, () => api.getBrands(t.value)).catch(() => ({ brands: [] as any[] })),
+        cached(t.modelsKey, () => api.fetch(t.modelsQuery)).catch(() => ({ models: [] as any[] })),
+      ]);
+      return {
+        brands: (brandsRes.brands || []) as any[],
+        modelCount: (modelsRes.models || []).length,
+      };
+    })
+  );
 
-  const dataByValue: Record<string, { brands: any[]; modelCount: number }> = {
-    car: { brands: carBrands.brands || [], modelCount: (carModels.models || []).length },
-    "2-wheeler": { brands: bikeBrands.brands || [], modelCount: (bikeModels.models || []).length },
-  };
-
-  const cards = TYPES.map((t) => ({ ...t, ...dataByValue[t.value] })).filter(
+  const cards = TYPES.map((t, i) => ({ ...t, ...results[i] })).filter(
     (c) => c.brands.length > 0 || c.modelCount > 0
   );
 
   if (cards.length === 0) return null;
 
+  /* Keep every track filled — never leave empty columns when a type has
+     no data (5 types → the full desktop row the design calls for). */
+  const mdCols = cards.length <= 2 ? "md:grid-cols-2" : "md:grid-cols-3";
+  const lgCols =
+    cards.length >= 5
+      ? "lg:grid-cols-5"
+      : cards.length === 4
+        ? "lg:grid-cols-4"
+        : cards.length === 3
+          ? "lg:grid-cols-3"
+          : "lg:grid-cols-2";
+
   return (
     <section className="vp-container vp-section">
       <SectionHead title="Shop by Vehicle" href="/vehicles" />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${mdCols} ${lgCols}`}>
         {cards.map(({ value, label, desc, Icon, brands, modelCount }) => (
           <Link
             key={value}
             href={`/products?vehicleType=${value}`}
-            className="vp-card vp-card-hover group flex min-h-[168px] flex-col justify-between bg-muted/40 p-5 sm:p-6"
+            className="vp-card vp-card-hover group flex min-h-[124px] flex-col items-center justify-center gap-1.5 p-4 text-center sm:p-5"
           >
-            <div className="flex items-start justify-between gap-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Icon className="h-6 w-6" aria-hidden />
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-brand transition-transform group-hover:scale-105">
+              <Icon className="h-6 w-6" aria-hidden />
+            </span>
+            <span className="mt-1 text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
+              {label}
+            </span>
+            <span className="hidden text-[13px] leading-snug text-muted-foreground sm:block">
+              {desc}
+            </span>
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {brands.length} {brands.length === 1 ? "brand" : "brands"} · {modelCount}{" "}
+              {modelCount === 1 ? "model" : "models"}
+            </span>
+            {brands.length > 0 && (
+              <span className="hidden w-full truncate text-[13px] text-muted-foreground sm:block">
+                {brands.slice(0, 4).map((b: any) => b.name).join(", ")}
+                {brands.length > 4 && `, +${brands.length - 4}`}
               </span>
-              <ArrowRight
-                className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1"
-                aria-hidden
-              />
-            </div>
-            <div className="mt-4">
-              <p className="text-lg font-semibold tracking-tight text-foreground">{label}</p>
-              <p className="mt-0.5 text-[15px] text-muted-foreground">{desc}</p>
-              <p className="mt-3 text-[13px] font-medium text-foreground">
-                {brands.length} {brands.length === 1 ? "brand" : "brands"} ·{" "}
-                {modelCount} {modelCount === 1 ? "model" : "models"}
-              </p>
-              {brands.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {brands.slice(0, 6).map((b: any) => (
-                    <span
-                      key={b._id}
-                      className="rounded border border-border bg-card px-2 py-0.5 text-[13px] font-medium text-muted-foreground"
-                    >
-                      {b.name}
-                    </span>
-                  ))}
-                  {brands.length > 6 && (
-                    <span className="rounded border border-border bg-card px-2 py-0.5 text-[13px] text-muted-foreground">
-                      +{brands.length - 6}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </Link>
         ))}
       </div>

@@ -132,23 +132,23 @@ export default function AdminVehiclesPage() {
   const currentDialog = tab === "brands" ? "brand" : tab === "models" ? "model" : "variant";
 
   return (
-    <div className="space-y-5 fade-in">
-      <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><Car className="h-6 w-6" /> Vehicle Management</h1>
+    <div className="vp-main space-y-5 fade-in">
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><Car className="h-6 w-6 shrink-0" /> Vehicle Management</h1>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="brands">Brands ({brands.length})</TabsTrigger>
-          <TabsTrigger value="models">Models ({models.length})</TabsTrigger>
-          <TabsTrigger value="variants">Variants ({variants.length})</TabsTrigger>
+        <TabsList className="h-auto w-full flex-wrap gap-1 sm:w-auto">
+          <TabsTrigger value="brands" className="min-h-10 px-3 sm:px-4">Brands ({brands.length})</TabsTrigger>
+          <TabsTrigger value="models" className="min-h-10 px-3 sm:px-4">Models ({models.length})</TabsTrigger>
+          <TabsTrigger value="variants" className="min-h-10 px-3 sm:px-4">Variants ({variants.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="brands" className="mt-4">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => openBrandDialog()}><Plus className="h-4 w-4 mr-1" /> Add Brand</Button>
+            <Button onClick={() => openBrandDialog()} className="w-full sm:w-auto min-h-11"><Plus className="h-4 w-4 mr-1" /> Add Brand</Button>
           </div>
           <div className="bg-card rounded-lg border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="vp-table-scroll">
+              <table className="w-full text-sm min-w-[560px]">
                 <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Name</th>
                   <th className="text-left py-3 px-4 font-medium">Vehicle Type</th>
@@ -175,11 +175,11 @@ export default function AdminVehiclesPage() {
 
         <TabsContent value="models" className="mt-4">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => openModelDialog()}><Plus className="h-4 w-4 mr-1" /> Add Model</Button>
+            <Button onClick={() => openModelDialog()} className="w-full sm:w-auto min-h-11"><Plus className="h-4 w-4 mr-1" /> Add Model</Button>
           </div>
           <div className="bg-card rounded-lg border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="vp-table-scroll">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Name</th>
                   <th className="text-left py-3 px-4 font-medium">Brand</th>
@@ -208,11 +208,11 @@ export default function AdminVehiclesPage() {
 
         <TabsContent value="variants" className="mt-4">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => openVariantDialog()}><Plus className="h-4 w-4 mr-1" /> Add Variant</Button>
+            <Button onClick={() => openVariantDialog()} className="w-full sm:w-auto min-h-11"><Plus className="h-4 w-4 mr-1" /> Add Variant</Button>
           </div>
           <div className="bg-card rounded-lg border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="vp-table-scroll">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead><tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Name</th>
                   <th className="text-left py-3 px-4 font-medium">Model</th>
@@ -251,7 +251,7 @@ export default function AdminVehiclesPage() {
               {editing ? "Edit" : "Create"} {currentDialog === "brand" ? "Brand" : currentDialog === "model" ? "Model" : "Variant"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
             {currentDialog === "brand" && (
               <>
                 <div><Label>Brand Name</Label><Input value={brandForm.name} onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })} /></div>
@@ -268,7 +268,7 @@ export default function AdminVehiclesPage() {
             )}
             {currentDialog === "model" && (
               <>
-                <div><Label>Model Name</Label><Input value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></div>
+                <div className="sm:col-span-2"><Label>Model Name</Label><Input value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></div>
                 <div><Label>Brand</Label>
                   <Select value={modelForm.brand || "__none"} onValueChange={(v) => setModelForm({ ...modelForm, brand: v === "__none" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
@@ -291,8 +291,8 @@ export default function AdminVehiclesPage() {
             )}
             {currentDialog === "variant" && (
               <>
-                <div><Label>Variant Name</Label><Input value={variantForm.name} onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })} /></div>
-                <div><Label>Model</Label>
+                <div className="sm:col-span-2"><Label>Variant Name</Label><Input value={variantForm.name} onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })} /></div>
+                <div className="sm:col-span-2"><Label>Model</Label>
                   <Select value={variantForm.vehicleModel || "__none"} onValueChange={(v) => setVariantForm({ ...variantForm, vehicleModel: v === "__none" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
                     <SelectContent>
@@ -301,15 +301,15 @@ export default function AdminVehiclesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:col-span-2">
                   <div><Label>Year From</Label><Input type="number" value={variantForm.yearFrom} onChange={(e) => setVariantForm({ ...variantForm, yearFrom: e.target.value })} /></div>
                   <div><Label>Year To</Label><Input type="number" value={variantForm.yearTo} onChange={(e) => setVariantForm({ ...variantForm, yearTo: e.target.value })} /></div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:col-span-2">
                   <div><Label>Engine Type</Label><Input value={variantForm.engineType} onChange={(e) => setVariantForm({ ...variantForm, engineType: e.target.value })} placeholder="e.g. Inline-4" /></div>
                   <div><Label>Engine CC</Label><Input type="number" value={variantForm.engineCC} onChange={(e) => setVariantForm({ ...variantForm, engineCC: e.target.value })} placeholder="e.g. 1500" /></div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:col-span-2">
                   <div><Label>Fuel Type</Label>
                     <Select value={variantForm.fuelType || "__none"} onValueChange={(v) => setVariantForm({ ...variantForm, fuelType: v === "__none" ? "" : v })}>
                       <SelectTrigger><SelectValue placeholder="Select fuel" /></SelectTrigger>
@@ -334,9 +334,9 @@ export default function AdminVehiclesPage() {
                 </div>
               </>
             )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={currentDialog === "brand" ? handleSaveBrand : currentDialog === "model" ? handleSaveModel : handleSaveVariant}>
+            <div className="sm:col-span-2 flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-11">Cancel</Button>
+              <Button onClick={currentDialog === "brand" ? handleSaveBrand : currentDialog === "model" ? handleSaveModel : handleSaveVariant} className="min-h-11">
                 {editing ? "Update" : "Create"}
               </Button>
             </div>

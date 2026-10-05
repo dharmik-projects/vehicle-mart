@@ -51,7 +51,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center text-sm font-bold mx-auto mb-4">
             VP
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Welcome Back</h1>
+          <h1 className="text-xl font-display font-bold text-foreground sm:text-2xl">Welcome Back</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to your VehiclePart account</p>
         </div>
 

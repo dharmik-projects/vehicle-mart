@@ -29,15 +29,15 @@ const FEATURES = [
 export default function TrustFeatures() {
   return (
     <section aria-label="Why shop with us" className="border-t border-border bg-card">
-      <div className="vp-container grid grid-cols-1 gap-x-6 gap-y-5 py-8 sm:grid-cols-2 lg:grid-cols-4 lg:py-10">
+      <div className="vp-container grid grid-cols-1 gap-x-8 gap-y-6 py-9 sm:grid-cols-2 lg:grid-cols-4 lg:py-11">
         {FEATURES.map((f) => (
-          <div key={f.title} className="flex items-start gap-3.5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+          <div key={f.title} className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
               {f.icon}
             </span>
             <div className="min-w-0">
-              <p className="text-[15px] font-semibold text-foreground">{f.title}</p>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{f.desc}</p>
+              <p className="text-base font-semibold text-foreground">{f.title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
             </div>
           </div>
         ))}

@@ -35,8 +35,8 @@ export default function AdminReviewsPage() {
   };
 
   return (
-    <div className="space-y-5 fade-in">
-      <div className="flex items-center justify-between">
+    <div className="vp-main space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Reviews & Ratings</h1>
           <p className="text-sm text-muted-foreground">{pagination?.total || 0} total reviews</p>
@@ -46,7 +46,7 @@ export default function AdminReviewsPage() {
       <div className="space-y-3">
         {reviews.map((r) => (
           <div key={r._id} className="bg-card rounded-lg border border-border p-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-2 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center">
@@ -63,9 +63,9 @@ export default function AdminReviewsPage() {
                 </div>
                 {r.title && <p className="text-sm font-medium text-foreground">{r.title}</p>}
                 <p className="text-sm text-muted-foreground mt-0.5">{r.comment}</p>
-                <p className="text-xs text-muted-foreground mt-1">Product: {r.product?.name || "—"}</p>
+                <p className="text-xs text-muted-foreground mt-1 break-words">Product: {r.product?.name || "—"}</p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => handleDelete(r._id)} className="shrink-0 text-muted-foreground hover:text-destructive">
+              <Button size="sm" variant="ghost" onClick={() => handleDelete(r._id)} title="Delete review" className="shrink-0 min-h-10 min-w-10 text-muted-foreground hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -83,11 +83,11 @@ export default function AdminReviewsPage() {
       </div>
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg">Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg">Next</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg min-h-10">Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="rounded-lg min-h-10">Next</Button>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+
+/* Vehicle types offered by the picker â€” same list the type selector always offered */
+const VEHICLE_TYPE_OPTIONS = [
+  { value: "", label: "All Types" },
+  { value: "2-wheeler", label: "ðŸï¸ 2-Wheeler" },
+  { value: "car", label: "ðŸš— Car" },
+  { value: "truck", label: "ðŸš› Truck" },
+  { value: "tractor", label: "ðŸšœ Tractor" },
+  { value: "ev", label: "âš¡ EV" },
+  { value: "three-wheeler", label: "ðŸ›º Three-Wheeler" },
+  { value: "bus", label: "ðŸšŒ Bus" },
+];
+
+/* Tappable option-card grid shared by the brand and model pickers */
+const optionGrid = "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4";
 
 export default function VehiclesPage() {
   const router = useRouter();
@@ -36,7 +51,7 @@ export default function VehiclesPage() {
   const loadBrands = async () => {
     setLoading(true);
     try {
-      // Shared cache with the homepage VehicleSelector (same keys) — revisit is instant
+      // Shared cache with the homepage VehicleSelector (same keys) â€” revisit is instant
       const data = await cached(`vbrands:${vehicleType || '__all'}`, () =>
         api.getBrands(vehicleType || undefined)
       );
@@ -75,86 +90,119 @@ export default function VehiclesPage() {
   const labelClass = "text-[13px] font-medium normal-case tracking-normal text-foreground mb-1.5 block";
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl fade-in">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-display font-semibold text-foreground mb-2">Select Your Vehicle</h1>
-        <p className="text-muted-foreground">Find compatible spare parts for your vehicle</p>
+    <div className="vp-container py-6 sm:py-8 fade-in">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-xl font-display font-bold text-foreground sm:text-2xl">Select Your Vehicle</h1>
+          <p className="text-sm text-muted-foreground">Find compatible spare parts for your vehicle</p>
+        </div>
+
+        <Card className="rounded-lg">
+          <CardContent className="space-y-5 p-4 sm:p-6">
+            {/* Vehicle Type â€” chips wrap on phones so nothing overflows */}
+            <div>
+              <span className={labelClass}>Vehicle Type</span>
+              <div className="flex flex-wrap gap-2">
+                {VEHICLE_TYPE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value || '__all'}
+                    type="button"
+                    onClick={() => { setVehicleType(opt.value); setSelectedBrand(''); setSelectedModel(''); setSelectedVariant(''); setModels([]); setVariants([]); }}
+                    className={`min-h-11 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors ${
+                      (vehicleType || '') === opt.value
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Brand â€” tappable cards (â‰¥44px) */}
+            <div>
+              <span className={labelClass}>Brand</span>
+              {loading && brands.length === 0 ? (
+                <div className={optionGrid}>
+                  {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-11 rounded-lg" />)}
+                </div>
+              ) : brands.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No brands found.</p>
+              ) : (
+                <div className={optionGrid}>
+                  {brands.map((b) => (
+                    <button
+                      key={b._id}
+                      type="button"
+                      onClick={() => { setSelectedBrand(b._id); setSelectedModel(''); setSelectedVariant(''); setVariants([]); }}
+                      className={`min-h-11 truncate rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                        selectedBrand === b._id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                      }`}
+                    >
+                      {b.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Model â€” tappable cards (â‰¥44px) */}
+            <div>
+              <span className={labelClass}>Model</span>
+              {!selectedBrand ? (
+                <p className="text-sm text-muted-foreground">Select a brand first.</p>
+              ) : loading && models.length === 0 ? (
+                <div className={optionGrid}>
+                  {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-11 rounded-lg" />)}
+                </div>
+              ) : models.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No models found.</p>
+              ) : (
+                <div className={optionGrid}>
+                  {models.map((m) => (
+                    <button
+                      key={m._id}
+                      type="button"
+                      onClick={() => { setSelectedModel(m._id); setSelectedVariant(''); }}
+                      className={`min-h-11 truncate rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                        selectedModel === m._id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Variant */}
+            <div>
+              <label className={labelClass}>Variant (Optional)</label>
+              <Select value={selectedVariant} onValueChange={setSelectedVariant}>
+                <SelectTrigger disabled={!selectedModel}>
+                  <SelectValue placeholder={selectedModel ? "Select variant" : "Select model first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {variants.map((v) => (
+                    <SelectItem key={v._id} value={v._id}>
+                      {v.name} ({v.yearFrom}-{v.yearTo}) {v.fuelType} {v.engineCC ? `${v.engineCC}cc` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button className="w-full min-h-12 bg-primary text-primary-foreground shadow-soft hover:shadow-card" size="lg" onClick={handleSearch} disabled={!selectedBrand}>
+              Find Compatible Parts
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="rounded-lg">
-        <CardContent className="p-6 space-y-4">
-          {/* Vehicle Type */}
-          <div>
-            <label className={labelClass}>Vehicle Type</label>
-            <Select value={vehicleType || "__all"} onValueChange={(v) => { setVehicleType(v === '__all' ? '' : v); setSelectedBrand(''); setSelectedModel(''); setSelectedVariant(''); setModels([]); setVariants([]); }}>
-              <SelectTrigger><SelectValue placeholder="Select vehicle type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all">All Types</SelectItem>
-                <SelectItem value="2-wheeler">🏍️ 2-Wheeler</SelectItem>
-                <SelectItem value="car">🚗 Car</SelectItem>
-                <SelectItem value="truck">🚛 Truck</SelectItem>
-                <SelectItem value="tractor">🚜 Tractor</SelectItem>
-                <SelectItem value="ev">⚡ EV</SelectItem>
-                <SelectItem value="three-wheeler">🛺 Three-Wheeler</SelectItem>
-                <SelectItem value="bus">🚌 Bus</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Brand */}
-          <div>
-            <label className={labelClass}>Brand</label>
-            <Select value={selectedBrand} onValueChange={(v) => { setSelectedBrand(v); setSelectedModel(''); setSelectedVariant(''); setVariants([]); }}>
-              <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
-              <SelectContent>
-                {loading ? (
-                  <SelectItem value="__loading">Loading...</SelectItem>
-                ) : (
-                  brands.map((b) => (
-                    <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Model */}
-          <div>
-            <label className={labelClass}>Model</label>
-            <Select value={selectedModel} onValueChange={(v) => { setSelectedModel(v); setSelectedVariant(''); }}>
-              <SelectTrigger disabled={!selectedBrand}>
-                <SelectValue placeholder={selectedBrand ? "Select model" : "Select brand first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((m) => (
-                  <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Variant */}
-          <div>
-            <label className={labelClass}>Variant (Optional)</label>
-            <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-              <SelectTrigger disabled={!selectedModel}>
-                <SelectValue placeholder={selectedModel ? "Select variant" : "Select model first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {variants.map((v) => (
-                  <SelectItem key={v._id} value={v._id}>
-                    {v.name} ({v.yearFrom}-{v.yearTo}) {v.fuelType} {v.engineCC ? `${v.engineCC}cc` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button className="w-full bg-primary text-primary-foreground shadow-soft hover:shadow-card" size="lg" onClick={handleSearch} disabled={!selectedBrand}>
-            Find Compatible Parts
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

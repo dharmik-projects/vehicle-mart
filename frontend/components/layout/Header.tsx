@@ -235,9 +235,9 @@ export default function Header() {
   /* ==================== ADMIN HEADER ==================== */
   if (isAdmin) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card shadow-[0_1px_3px_rgba(17,20,26,0.06)]">
         <div className="vp-container flex h-16 items-center justify-between gap-4">
-          <Link href="/admin" className="flex items-center gap-2.5">
+          <Link href="/admin" className="flex items-center gap-2.5 py-1">
             <Logo size="sm" />
             <span className="hidden font-display text-base font-semibold tracking-tight sm:block">
               VehiclePart
@@ -309,10 +309,10 @@ export default function Header() {
     ];
 
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card shadow-[0_1px_3px_rgba(17,20,26,0.06)]">
         <div className="vp-container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <Link href="/seller" className="flex items-center gap-2.5">
+            <Link href="/seller" className="flex items-center gap-2.5 py-1">
               <Logo size="sm" />
               <span className="hidden font-display text-base font-semibold tracking-tight sm:block">
                 VehiclePart
@@ -433,19 +433,27 @@ export default function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card shadow-[0_1px_3px_rgba(17,20,26,0.06)]">
       <div className="vp-container">
-        <div className="flex h-16 items-center gap-3 sm:gap-4">
+        {/* Mobile: two rows (logo+actions / full-width search). sm+: single row.
+            Grid placement only applies below sm — the sm:flex row ignores it. */}
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 py-1.5 sm:flex sm:h-16 sm:gap-4 sm:py-0">
           {/* Logo */}
-          <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/"
+            className="col-start-1 row-start-1 flex shrink-0 items-center gap-2 py-1"
+          >
             <Logo size="sm" />
-            <span className="hidden font-display text-[15px] font-bold leading-none tracking-tight text-foreground sm:block">
+            <span className="font-display text-[15px] font-bold leading-none tracking-tight text-foreground">
               VehiclePart
             </span>
           </Link>
 
           {/* Search */}
-          <div ref={searchRef} className="relative min-w-0 flex-1">
+          <div
+            ref={searchRef}
+            className="relative col-start-1 col-span-3 row-start-2 min-w-0 sm:col-span-auto sm:row-start-auto sm:flex-1"
+          >
             <form onSubmit={handleSearch} role="search">
               <div className="relative flex items-center">
                 <Search className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
@@ -464,7 +472,7 @@ export default function Header() {
                 <Button
                   type="submit"
                   size="sm"
-                  className="absolute right-1.5 h-8 rounded-md px-3 text-sm"
+                  className="absolute right-1.5 h-9 rounded-md px-3 text-sm"
                 >
                   Search
                 </Button>
@@ -556,7 +564,7 @@ export default function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-0.5 justify-self-end">
             <Link
               href="/wishlist"
               className="relative hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
@@ -584,9 +592,9 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setUserMenu(!userMenu)}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-medium transition-colors hover:bg-muted sm:py-1.5"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground sm:h-9 sm:w-9">
                     {user.name.charAt(0).toUpperCase()}
                   </span>
                   <span className="hidden text-foreground lg:block">

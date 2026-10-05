@@ -43,7 +43,7 @@ export default function SellerReviews() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Reviews</h1>
         <p className="text-sm text-muted-foreground">Customer reviews for your products</p>
@@ -58,25 +58,25 @@ export default function SellerReviews() {
           <div className="space-y-3">
             {reviews.map((r) => (
               <div key={r._id} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-foreground">{r.user?.name || "Anonymous"}</p>
                       <Badge variant="outline" className="text-xs">{r.isVerifiedPurchase ? "Verified" : "Unverified"}</Badge>
                     </div>
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex flex-wrap items-center gap-1 mt-1">
                       {[1, 2, 3, 4, 5].map((s) => (
                         <Star key={s} className={`h-3.5 w-3.5 ${s <= r.rating ? "text-foreground fill-foreground" : "text-border"}`} />
                       ))}
                       <span className="text-xs text-muted-foreground ml-1">{formatDate(r.createdAt)}</span>
                     </div>
-                    {r.title && <p className="text-sm font-medium mt-2 text-foreground">{r.title}</p>}
-                    <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
+                    {r.title && <p className="text-sm font-medium mt-2 text-foreground break-words">{r.title}</p>}
+                    <p className="text-sm text-muted-foreground mt-1 break-words">{r.comment}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground">For: {r.product?.name || "Product"}</p>
-                  <Button size="sm" variant="ghost" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => handleHelpful(r._id)}>
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-3 pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground min-w-0 flex-1 break-words">For: {r.product?.name || "Product"}</p>
+                  <Button size="sm" variant="ghost" className="min-h-10 text-xs text-muted-foreground hover:text-foreground" onClick={() => handleHelpful(r._id)}>
                     <ThumbsUp className="h-3 w-3 mr-1" /> Helpful ({r.helpful || 0})
                   </Button>
                 </div>
@@ -84,10 +84,10 @@ export default function SellerReviews() {
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /><span className="sr-only">Previous page</span></Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /><span className="sr-only">Next page</span></Button>
             </div>
           )}
         </>

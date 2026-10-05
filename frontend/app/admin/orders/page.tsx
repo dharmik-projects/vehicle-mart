@@ -83,22 +83,22 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <div className="space-y-5 fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6" /> Orders Management</h1>
-        <Badge variant="outline">{pagination?.total || 0} orders</Badge>
+    <div className="vp-main space-y-5 fade-in">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2"><ShoppingCart className="h-6 w-6 shrink-0" /> Orders Management</h1>
+        <Badge variant="outline" className="self-start sm:self-auto">{pagination?.total || 0} orders</Badge>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Select value={statusFilter || "__all"} onValueChange={(v) => { setStatusFilter(v === "__all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all">All Status</SelectItem>
             {orderStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={paymentFilter || "__all"} onValueChange={(v) => { setPaymentFilter(v === "__all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All Payment" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Payment" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all">All Payment</SelectItem>
             {paymentStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -106,9 +106,10 @@ export default function AdminOrdersPage() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-lg border border-border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      {/* Desktop (md+): table */}
+      <div className="hidden md:block bg-card rounded-lg border border-border">
+          <div className="vp-table-scroll">
+            <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-border bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="text-left py-3 px-4 font-medium">Order ID</th>
@@ -161,12 +162,56 @@ export default function AdminOrdersPage() {
           </div>
       </div>
 
+      {/* Mobile: compact cards */}
+      <div className="md:hidden space-y-3">
+        {orders.map((o) => (
+          <div key={o._id} className="bg-card rounded-lg border border-border p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3 min-w-0">
+              <div className="min-w-0">
+                <p className="font-mono text-sm font-semibold text-foreground truncate">#{o._id.slice(-8).toUpperCase()}</p>
+                <p className="text-xs text-muted-foreground truncate">{o.user?.name || "—"}{o.user?.email ? ` · ${o.user.email}` : ""}</p>
+              </div>
+              <Badge variant={statusBadgeVariant(o.paymentStatus)} className="shrink-0">{o.paymentStatus}</Badge>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Items</span>
+                <span className="text-foreground">{o.items?.length || 0}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Total</span>
+                <span className="font-semibold text-foreground tabular-nums">{formatPrice(o.total)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground shrink-0">Date</span>
+                <span className="text-xs text-muted-foreground text-right">{formatDate(o.createdAt)}</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={o.orderStatus} onValueChange={(v) => handleStatusUpdate(o._id, v)} disabled={busyId === o._id}>
+                <SelectTrigger className="flex-1 min-w-[150px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {orderStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {busyId === o._id && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
+              <Button size="sm" variant="outline" onClick={() => viewOrder(o._id)} title="View order" className="min-h-10">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
+          </div>
+        ))}
+        {orders.length === 0 && (
+          <div className="text-center py-10 bg-card border border-border rounded-lg text-sm text-muted-foreground">No orders found</div>
+        )}
+      </div>
+
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="min-h-10">Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)} className="min-h-10">Next</Button>
           </div>
         </div>
       )}
@@ -188,12 +233,12 @@ export default function AdminOrdersPage() {
               </div>
               <div className="space-y-2">
                 {detailOrder.items?.map((item: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between text-sm p-2 bg-muted rounded-lg">
-                    <div>
-                      <p className="font-medium">{item.name}</p>
+                  <div key={i} className="flex items-center justify-between gap-3 text-sm p-2 bg-muted rounded-lg min-w-0">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatPrice(item.price)}</p>
                     </div>
-                    <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
+                    <span className="font-medium shrink-0 tabular-nums">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>

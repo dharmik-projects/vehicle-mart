@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { cached } from "@/lib/cache";
@@ -25,13 +25,12 @@ const VEHICLE_TYPES = [
 
 const ALL = "__all";
 
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: currentYear - 1999 }, (_, i) => String(currentYear - i));
-
 /**
  * Compact "Select Your Vehicle" finder: Type → Brand → Model → Variant → Year.
- * Submits to /products with real compatibility filters (vehicleType,
- * vehicleBrand, vehicleModel, vehicleVariant, year).
+ * Every step is real MongoDB data loaded through the API. The Year step is
+ * derived from the SELECTED VARIANT's actual yearFrom/yearTo — never a
+ * generated range — and stays disabled (with an explanatory placeholder)
+ * until a variant with a year range is chosen.
  */
 export default function VehicleSelector() {
   const router = useRouter();
@@ -47,6 +46,15 @@ export default function VehicleSelector() {
   const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState({ brands: true, models: false, variants: false });
 
+  /* Real years for the selected variant only (yearFrom/yearTo from MongoDB). */
+  const selectedVariant = variants.find((v: any) => String(v._id) === variant);
+  const years = useMemo(() => {
+    const from = Number(selectedVariant?.yearFrom);
+    const to = Number(selectedVariant?.yearTo);
+    if (!from || !to || to < from || to - from > 80) return [];
+    return Array.from({ length: to - from + 1 }, (_, i) => String(to - i));
+  }, [selectedVariant]);
+
   /* All brands load on mount via the type effect below (vehicleType starts as ALL) */
 
   /* Type change → load brands for that type, reset deeper selections */
@@ -55,6 +63,7 @@ export default function VehicleSelector() {
     setBrand(ALL);
     setModel(ALL);
     setVariant(ALL);
+    setYear(ALL);
     setModels([]);
     setVariants([]);
     setLoading((l) => ({ ...l, brands: true }));
@@ -80,6 +89,7 @@ export default function VehicleSelector() {
     let alive = true;
     setModel(ALL);
     setVariant(ALL);
+    setYear(ALL);
     setVariants([]);
     if (brand === ALL) {
       setModels([]);
@@ -105,6 +115,7 @@ export default function VehicleSelector() {
   useEffect(() => {
     let alive = true;
     setVariant(ALL);
+    setYear(ALL);
     if (model === ALL) {
       setVariants([]);
       return;
@@ -142,7 +153,7 @@ export default function VehicleSelector() {
         <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
           Find Parts for Your Vehicle
         </h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-6">
           <Select value={vehicleType} onValueChange={setVehicleType}>
             <SelectTrigger className="bg-card" aria-label="Vehicle type">
               <SelectValue placeholder="Vehicle Type" />
@@ -159,7 +170,11 @@ export default function VehicleSelector() {
 
           <Select value={brand} onValueChange={setBrand} disabled={loading.brands}>
             <SelectTrigger className="bg-card" aria-label="Vehicle brand">
-              <SelectValue placeholder={loading.brands ? "Loading…" : "Brand"} />
+              <SelectValue
+                placeholder={
+                  loading.brands ? "Loading…" : brands.length === 0 ? "No brands found" : "Brand"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Any Brand</SelectItem>
@@ -173,7 +188,15 @@ export default function VehicleSelector() {
 
           <Select value={model} onValueChange={setModel} disabled={brand === ALL || loading.models}>
             <SelectTrigger className="bg-card" aria-label="Vehicle model">
-              <SelectValue placeholder={loading.models ? "Loading…" : "Model"} />
+              <SelectValue
+                placeholder={
+                  loading.models
+                    ? "Loading…"
+                    : brand !== ALL && models.length === 0
+                      ? "No models found"
+                      : "Model"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Any Model</SelectItem>
@@ -185,27 +208,57 @@ export default function VehicleSelector() {
             </SelectContent>
           </Select>
 
-          <Select value={variant} onValueChange={setVariant} disabled={model === ALL || loading.variants}>
+          <Select
+            value={variant}
+            onValueChange={(v) => {
+              setVariant(v);
+              setYear(ALL); // year options belong to the newly selected variant
+            }}
+            disabled={model === ALL || loading.variants}
+          >
             <SelectTrigger className="bg-card" aria-label="Vehicle variant">
-              <SelectValue placeholder={loading.variants ? "Loading…" : "Variant"} />
+              <SelectValue
+                placeholder={
+                  loading.variants
+                    ? "Loading…"
+                    : model !== ALL && variants.length === 0
+                      ? "No variants found"
+                      : "Variant"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Any Variant</SelectItem>
               {variants.map((v: any) => (
                 <SelectItem key={v._id} value={v._id}>
                   {v.name}
+                  {Number(v.yearFrom) && Number(v.yearTo)
+                    ? ` (${v.yearFrom}–${v.yearTo})`
+                    : ""}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={year} onValueChange={setYear}>
+          <Select
+            value={variant === ALL ? undefined : year}
+            onValueChange={setYear}
+            disabled={variant === ALL || years.length === 0}
+          >
             <SelectTrigger className="bg-card" aria-label="Vehicle year">
-              <SelectValue placeholder="Year" />
+              <SelectValue
+                placeholder={
+                  variant === ALL
+                    ? "Choose variant first"
+                    : years.length === 0
+                      ? "Years not listed"
+                      : "Year"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Any Year</SelectItem>
-              {YEARS.map((y) => (
+              {years.map((y) => (
                 <SelectItem key={y} value={y}>
                   {y}
                 </SelectItem>
@@ -213,7 +266,10 @@ export default function VehicleSelector() {
             </SelectContent>
           </Select>
 
-          <Button onClick={submit} className="col-span-2 sm:col-span-3 lg:col-span-1">
+          <Button
+            onClick={submit}
+            className="col-span-1 min-h-11 min-[420px]:col-span-2 md:col-span-3 xl:col-span-1"
+          >
             Find Parts
           </Button>
         </div>

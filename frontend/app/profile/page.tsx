@@ -68,12 +68,12 @@ export default function ProfilePage() {
   const primaryBtnClass = "bg-primary text-primary-foreground shadow-soft hover:shadow-card";
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 fade-in">
-      <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-6">My Account</h1>
+    <div className="vp-container py-6 sm:py-8 fade-in">
+      <h1 className="mb-6 text-xl font-display font-bold text-foreground sm:text-2xl">My Account</h1>
 
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid gap-6 md:grid-cols-4">
         {/* Sidebar */}
-        <div className="md:col-span-1">
+        <div className="min-w-0 md:col-span-1">
           <div className="bg-card rounded-lg border border-border p-4">
             {/* User info */}
             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
@@ -86,18 +86,18 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Nav */}
-            <nav className="space-y-0.5">
-              <button onClick={() => setTab('profile')} className={`w-full h-10 flex items-center gap-2 px-3 rounded-lg text-sm font-medium transition-colors ${tab === 'profile' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                <User className="h-4 w-4" /> Profile
+            {/* Nav — chip row on phones, stacked list from md up */}
+            <nav className="flex flex-wrap gap-2 md:block md:space-y-0.5 md:gap-0">
+              <button onClick={() => setTab('profile')} className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors md:w-full ${tab === 'profile' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground md:border-transparent md:bg-transparent'}`}>
+                <User className="h-4 w-4 shrink-0" /> Profile
               </button>
-              <button onClick={() => setTab('password')} className={`w-full h-10 flex items-center gap-2 px-3 rounded-lg text-sm font-medium transition-colors ${tab === 'password' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                <Lock className="h-4 w-4" /> Password
+              <button onClick={() => setTab('password')} className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors md:w-full ${tab === 'password' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground md:border-transparent md:bg-transparent'}`}>
+                <Lock className="h-4 w-4 shrink-0" /> Password
               </button>
-              <div className="border-t border-border my-2" />
+              <div className="my-2 hidden border-t border-border md:block" />
               {accountLinks.map((link) => (
-                <Link key={link.href} href={link.href} className="flex items-center gap-2 px-3 h-10 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                  <link.icon className="h-4 w-4" /> {link.label}
+                <Link key={link.href} href={link.href} className="flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:w-full md:border-transparent md:bg-transparent">
+                  <link.icon className="h-4 w-4 shrink-0" /> {link.label}
                 </Link>
               ))}
             </nav>
@@ -105,7 +105,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Content */}
-        <div className="md:col-span-3">
+        <div className="min-w-0 md:col-span-3">
           {tab === 'profile' ? (
             <div className="bg-card rounded-lg border border-border p-5 sm:p-6">
               <h2 className="text-base font-bold text-foreground mb-4">Profile Information</h2>
@@ -123,7 +123,7 @@ export default function ProfilePage() {
                   <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" className="mt-1 h-11" />
                 </div>
                 <p className="text-xs text-muted-foreground">Member since {formatDate((user as any).createdAt || new Date())}</p>
-                <Button type="submit" disabled={saving} className={`${primaryBtnClass} h-11`}>
+                <Button type="submit" disabled={saving} className={`${primaryBtnClass} h-11 w-full sm:w-auto`}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </form>
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                   <Label className={labelClass}>New Password</Label>
                   <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="mt-1 h-11" />
                 </div>
-                <Button type="submit" disabled={saving} className={`${primaryBtnClass} h-11`}>
+                <Button type="submit" disabled={saving} className={`${primaryBtnClass} h-11 w-full sm:w-auto`}>
                   {saving ? 'Changing...' : 'Change Password'}
                 </Button>
               </form>

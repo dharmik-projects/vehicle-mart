@@ -85,18 +85,25 @@ export default function SellerReturns() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  // This return's line items that belong to the logged-in seller — used for the
+  // compact "items" line so the card needs no horizontal scrolling on phones.
+  const sellerItems = (r: any) =>
+    (r?.items || []).filter(
+      (item: any) => item.seller === (user as any)?.id || item.seller?._id === (user as any)?.id
+    );
+
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Returns & Refunds</h1>
         <p className="text-sm text-muted-foreground">Manage customer return requests</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -115,26 +122,31 @@ export default function SellerReturns() {
           <div className="space-y-3">
             {returns.map((r) => (
               <div key={r._id} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-sm text-foreground">#{r._id.slice(-8).toUpperCase()}</p>
                       <Badge variant={statusVariant(r.orderStatus)} className="text-xs">{r.orderStatus}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{r.user?.name} • {formatDate(r.createdAt)}</p>
-                    {r.cancelReason && <p className="text-xs text-muted-foreground mt-1">Reason: {r.cancelReason}</p>}
+                    <p className="text-xs text-muted-foreground mt-1 break-words">{r.user?.name} • {formatDate(r.createdAt)}</p>
+                    {sellerItems(r).length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        Items: {sellerItems(r).map((item: any) => item.name).join(", ")}
+                      </p>
+                    )}
+                    {r.cancelReason && <p className="text-xs text-muted-foreground mt-1 break-words">Reason: {r.cancelReason}</p>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className="font-bold text-foreground">{formatPrice(r.total)}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end sm:shrink-0">
+                    <p className="font-bold text-foreground tabular-nums">{formatPrice(r.total)}</p>
                     {/* Approve/Reject only while the return is still awaiting a
                         decision — once approved the backend marks the order
                         paymentStatus: 'refunded' (orderStatus stays 'returned'). */}
                     {r.orderStatus === "returned" && r.paymentStatus !== "refunded" && (
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={() => handleApprove(r._id)}>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" className="min-h-10" onClick={() => handleApprove(r._id)}>
                           <Check className="h-3 w-3 mr-1" /> Approve
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleReject(r._id)}>
+                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => handleReject(r._id)}>
                           <X className="h-3 w-3 mr-1" /> Reject
                         </Button>
                       </div>
@@ -145,10 +157,10 @@ export default function SellerReturns() {
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /><span className="sr-only">Previous page</span></Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /><span className="sr-only">Next page</span></Button>
             </div>
           )}
         </>

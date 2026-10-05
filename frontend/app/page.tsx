@@ -4,7 +4,6 @@ import VehicleSelector from "@/components/vehicle/VehicleSelector";
 import CategorySection from "@/components/home/CategorySection";
 import ShopByVehicle from "@/components/home/ShopByVehicle";
 import PopularSection from "@/components/home/PopularSection";
-import DealsSection from "@/components/home/DealsSection";
 import PopularBrandsSection from "@/components/home/PopularBrandsSection";
 import ProductFeedSection from "@/components/home/ProductFeedSection";
 import RecentlyViewed from "@/components/home/RecentlyViewed";
@@ -27,8 +26,10 @@ import {
  * ones.
  *
  * Section order: CategoryNav → Find Parts for Your Vehicle → Shop by
- * Category → Shop by Vehicle → Popular & Featured → Deals → Popular Brands
- * → All Products → Recently Viewed → Trust Features → Footer.
+ * Category → Shop by Vehicle → Popular & Featured → Popular Brands →
+ * All Products (8 + Load More) → Recently Viewed → Trust Features → Footer.
+ * (The Deals & Best Offers section is temporarily removed from the homepage;
+ *  its component/API remain intact and can be re-enabled later.)
  *
  * `revalidate = 60` serves fully-rendered HTML instantly (stale-while-
  * revalidate), so repeat visitors never wait on any API for the shell.
@@ -38,9 +39,12 @@ export const revalidate = 60;
 /* Fallback skeletons — shown only while that section's request is pending */
 function VehicleShopSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <Skeleton className="h-[168px] rounded-lg" />
-      <Skeleton className="h-[168px] rounded-lg" />
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
+      {Array(5)
+        .fill(0)
+        .map((_, i) => (
+          <Skeleton key={i} className="h-[110px] rounded-lg" />
+        ))}
     </div>
   );
 }
@@ -73,21 +77,25 @@ export default function HomePage() {
 
       {/* ── 3. Shop by Category — streams when the category API responds ─ */}
       <section className="vp-container vp-section">
-        <SectionHead title="Shop by Category" href="/categories" />
+        <SectionHead
+          title="Shop by Category"
+          href="/categories"
+          linkLabel="View All Categories"
+        />
         <Suspense fallback={<CategoryGridSkeleton />}>
           <CategorySection />
         </Suspense>
       </section>
 
-      {/* ── 4. Shop by Vehicle — real car / 2-wheeler data from MongoDB ── */}
+      {/* ── 4. Shop by Vehicle — real vehicle-type data from MongoDB ─── */}
       <Suspense fallback={<VehicleShopSkeleton />}>
         <ShopByVehicle />
       </Suspense>
 
       <div className="vp-container"><div className="h-px bg-border" /></div>
 
-      {/* ── 5. Popular / Featured — streams when the products API responds ─ */}
-      <section className="border-y border-border bg-muted/30">
+      {/* ── 5. Popular / Featured — white band separates it from the grey page ─ */}
+      <section className="border-y border-border bg-card">
         <div className="vp-container vp-section">
           <SectionHead title="Popular & Featured" href="/products?sort=popular" />
           <Suspense fallback={<ProductGridSkeleton count={8} />}>
@@ -96,17 +104,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 6. Deals & Best Offers — real mrp>price products (self-hides) ─ */}
-      <Suspense fallback={<ProductGridSkeleton count={8} />}>
-        <DealsSection />
-      </Suspense>
-
-      {/* ── 7. Popular Brands — real brands that have products (self-hides) ─ */}
+      {/* ── 6. Popular Brands — real brands that have products (self-hides) ─ */}
       <Suspense fallback={<BrandPillsSkeleton />}>
         <PopularBrandsSection />
       </Suspense>
 
-      {/* ── 8. Product feed — page 1 from the server, more on scroll ──── */}
+      {/* ── 7. Product feed — 8 from the server, Load More for the rest ─── */}
       <section className="vp-container vp-section">
         <SectionHead title="All Products" href="/products" />
         <Suspense fallback={<ProductGridSkeleton count={10} />}>
@@ -114,10 +117,10 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* ── 9. Recently Viewed — client, hidden when no history ────────── */}
+      {/* ── 8. Recently Viewed — client, limited + View All, hidden when no history ── */}
       <RecentlyViewed />
 
-      {/* ── 10. Trust features ─────────────────────────────────────────── */}
+      {/* ── 9. Trust features ─────────────────────────────────────────── */}
       <TrustFeatures />
     </div>
   );

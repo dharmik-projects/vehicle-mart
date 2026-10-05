@@ -61,9 +61,9 @@ export default function CartPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 fade-in">
-        <Skeleton className="h-7 w-48 mb-6" />
-        <div className="grid lg:grid-cols-3 gap-6">
+      <div className="vp-container py-6 sm:py-8 fade-in">
+        <Skeleton className="mb-6 h-7 w-48" />
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-3">
             {Array(3).fill(0).map((_, i) => (
               <Card key={i} className="rounded-lg"><CardContent className="p-4 flex gap-4">
@@ -89,12 +89,12 @@ export default function CartPage() {
 
   if (!user) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 fade-in">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-muted border border-border">
+      <div className="vp-container fade-in flex min-h-[60vh] flex-col items-center justify-center py-6 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-muted">
           <ShoppingBag className="h-7 w-7 text-foreground" />
         </div>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Your cart is empty</h2>
-        <p className="text-sm text-muted-foreground mb-4">Sign in to view your cart</p>
+        <h1 className="mb-1 text-xl font-semibold text-foreground">Your cart is empty</h1>
+        <p className="mb-4 text-sm text-muted-foreground">Sign in to view your cart</p>
         <Link href="/login"><Button className="bg-primary text-primary-foreground shadow-soft hover:shadow-card">Sign In</Button></Link>
       </div>
     );
@@ -106,29 +106,29 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 fade-in">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-muted border border-border">
+      <div className="vp-container fade-in flex min-h-[60vh] flex-col items-center justify-center py-6 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-muted">
           <PackageOpen className="h-7 w-7 text-foreground" />
         </div>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Your cart is empty</h2>
-        <p className="text-sm text-muted-foreground mb-4">Start shopping to add parts to your cart</p>
+        <h1 className="mb-1 text-xl font-semibold text-foreground">Your cart is empty</h1>
+        <p className="mb-4 text-sm text-muted-foreground">Start shopping to add parts to your cart</p>
         <Link href="/products"><Button className="bg-primary text-primary-foreground shadow-soft hover:shadow-card">Browse Parts</Button></Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 fade-in">
-      <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5">Shopping Cart ({totalItems} items)</h1>
-      <div className="grid lg:grid-cols-3 gap-6">
+    <div className="vp-container py-6 pb-28 sm:py-8 sm:pb-28 lg:pb-0 fade-in">
+      <h1 className="mb-5 text-xl font-display font-bold text-foreground sm:text-2xl">Shopping Cart ({totalItems} items)</h1>
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-3">
           {items.map((item) => {
             const product = item.product;
             if (!product) return null;
             return (
-              <div key={item._id} className="bg-card rounded-lg border border-border p-4 hover:shadow-soft transition-shadow">
-                <div className="flex gap-4">
+              <div key={item._id} className="bg-card rounded-lg border border-border p-4 transition-shadow hover:shadow-soft">
+                <div className="flex gap-3 sm:gap-4">
                   <Link href={`/products/${product.slug}`} className="shrink-0">
                     <div className="w-20 h-20 sm:w-24 sm:h-24 bg-muted rounded-lg overflow-hidden">
                       {product.images?.[0]?.url ? (
@@ -139,7 +139,7 @@ export default function CartPage() {
                     </div>
                   </Link>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/products/${product.slug}`} className="text-[15px] font-medium hover:underline line-clamp-2 text-foreground">
+                    <Link href={`/products/${product.slug}`} className="line-clamp-2 min-h-[36px] break-words text-[15px] font-medium text-foreground hover:underline">
                       {product.name}
                     </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">{product.brand}</p>
@@ -153,16 +153,16 @@ export default function CartPage() {
                   <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
                     <button
                       onClick={() => handleQty(product._id, Math.max(1, item.quantity - 1))}
-                      className="h-10 w-10 flex items-center justify-center text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                      className="flex h-11 w-11 items-center justify-center text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:hover:bg-transparent sm:h-10 sm:w-10"
                       aria-label="Decrease quantity"
                       disabled={!!busyItems[product._id]}
                     >
                       <Minus className="h-4 w-4" />
                     </button>
-                    <span className="px-3 h-10 min-w-[2.5rem] flex items-center justify-center text-sm font-medium border-x border-border">{item.quantity}</span>
+                    <span className="flex h-11 min-w-[2.5rem] items-center justify-center border-x border-border px-3 text-sm font-medium sm:h-10">{item.quantity}</span>
                     <button
                       onClick={() => handleQty(product._id, Math.min(product.stock, item.quantity + 1))}
-                      className="h-10 w-10 flex items-center justify-center text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                      className="flex h-11 w-11 items-center justify-center text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:hover:bg-transparent sm:h-10 sm:w-10"
                       aria-label="Increase quantity"
                       disabled={!!busyItems[product._id]}
                     >
@@ -172,7 +172,7 @@ export default function CartPage() {
                   <span className="text-sm font-semibold text-foreground sm:hidden">{formatPrice(product.price * item.quantity)}</span>
                   <button
                     onClick={() => handleRemove(product._id)}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-3 rounded-lg transition-colors sm:p-2 disabled:opacity-50"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-3 rounded-lg transition-colors sm:p-2.5 disabled:opacity-50"
                     title="Remove"
                     aria-label="Remove item"
                     disabled={!!busyItems[product._id]}
@@ -187,7 +187,7 @@ export default function CartPage() {
               </div>
             );
           })}
-          <div className="flex justify-between pt-2">
+          <div className="flex flex-wrap justify-between gap-2 pt-2">
             <Button variant="ghost" size="sm" onClick={() => clearAll()} className="text-destructive hover:text-destructive hover:bg-destructive/10">Clear Cart</Button>
             <Link href="/products"><Button variant="ghost" size="sm" className="hover:bg-muted hover:text-foreground">Continue Shopping</Button></Link>
           </div>
@@ -222,11 +222,24 @@ export default function CartPage() {
                   Add {formatPrice(500 - total)} more for free shipping!
                 </p>
               )}
-              <Button className="w-full mt-2 bg-primary text-primary-foreground shadow-soft hover:shadow-card h-12" size="lg" onClick={() => router.push('/checkout')}>
-                Proceed to Checkout <ArrowRight className="h-4 w-4 ml-2" />
+              <Button className="mt-2 h-12 w-full bg-primary text-primary-foreground shadow-soft hover:shadow-card" size="lg" onClick={() => router.push('/checkout')}>
+                Proceed to Checkout <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile sticky checkout bar — keeps the running total reachable while scrolling */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">Total ({totalItems} items)</p>
+            <p className="text-lg font-bold leading-tight text-foreground">{formatPrice(grandTotal)}</p>
+          </div>
+          <Button size="lg" className="min-h-12 shrink-0 px-6 bg-primary text-primary-foreground shadow-soft hover:shadow-card" onClick={() => router.push('/checkout')}>
+            Checkout <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

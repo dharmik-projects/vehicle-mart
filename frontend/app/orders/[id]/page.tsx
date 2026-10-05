@@ -116,7 +116,7 @@ export default function OrderDetailPage() {
     } catch (err: any) { toast.error(err.message || 'Failed to initialize payment'); setRetrying(false); }
   };
 
-  if (loading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 fade-in"><Skeleton className="h-96 rounded-lg" /></div>;
+  if (loading) return <div className="vp-container py-6 sm:py-8 fade-in"><Skeleton className="h-96 rounded-lg" /></div>;
   if (!order) return null;
 
   const currentStepIndex = orderSteps.findIndex((s) => s.key === order.orderStatus);
@@ -124,14 +124,14 @@ export default function OrderDetailPage() {
   const showPaymentFailed = order.paymentStatus === 'failed';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 fade-in">
+    <div className="vp-container py-6 sm:py-8 fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
         <Link href="/" className="hover:text-primary">Home</Link>
-        <ChevronRight className="h-3 w-3" />
+        <ChevronRight className="h-3 w-3 shrink-0" />
         <Link href="/orders" className="hover:text-primary">Orders</Link>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
+        <ChevronRight className="h-3 w-3 shrink-0" />
+        <span className="min-w-0 truncate text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-5">
@@ -154,7 +154,7 @@ export default function OrderDetailPage() {
               <p className="text-xs text-muted-foreground">Amount: {formatPrice(order.total)}</p>
             </div>
           </div>
-          <Button onClick={handleRetryPayment} disabled={retrying} size="sm" className="bg-primary text-primary-foreground shadow-soft hover:shadow-card shrink-0">
+          <Button onClick={handleRetryPayment} disabled={retrying} size="sm" className="min-h-11 shrink-0 bg-primary text-primary-foreground shadow-soft hover:shadow-card">
             {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
             {retrying ? 'Processing...' : 'Pay Now'}
           </Button>
@@ -163,30 +163,57 @@ export default function OrderDetailPage() {
 
       {/* Order Progress */}
       {!['cancelled', 'returned'].includes(order.orderStatus) && (
-        <div className="bg-card rounded-lg border border-border p-5 mb-5">
-          <div className="flex items-center">
+        <div className="vp-card mb-5 p-5">
+          {/* Vertical timeline — phones */}
+          <div className="md:hidden">
             {orderSteps.map((step, i) => {
               const isCompleted = i <= currentStepIndex;
               const isCurrent = i === currentStepIndex;
               const Icon = step.icon;
               return (
-                <div key={step.key} className="flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                  } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
-                    <Icon className="h-4 w-4" />
+                <div key={step.key} className="flex items-start gap-3">
+                  <div className="flex flex-col items-center self-stretch">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+                      isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                    } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    {i < orderSteps.length - 1 && (
+                      <div className={`w-0.5 min-h-6 flex-1 ${i < currentStepIndex ? 'bg-primary' : 'bg-border'}`} />
+                    )}
                   </div>
-                  <span className="text-xs mt-1.5 text-center text-muted-foreground hidden sm:block">{step.label}</span>
-                  {i < orderSteps.length - 1 && (
-                    <div className={`absolute h-0.5 w-full ${i < currentStepIndex ? 'bg-primary' : 'bg-border'}`} style={{ display: 'none' }} />
-                  )}
+                  <div className={`min-w-0 pb-4 ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    <p className={`text-sm ${isCurrent ? 'font-semibold' : 'font-medium'}`}>{step.label}</p>
+                    {isCompleted && !isCurrent && <p className="text-xs">Completed</p>}
+                    {isCurrent && <p className="text-xs text-muted-foreground">Current status</p>}
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Horizontal timeline — tablet and up */}
+          <div className="hidden md:flex">
+            {orderSteps.map((step, i) => {
+              const isCompleted = i <= currentStepIndex;
+              const isCurrent = i === currentStepIndex;
+              const Icon = step.icon;
+              return (
+                <div key={step.key} className="flex flex-1 flex-col items-center">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className={`mt-1.5 text-center text-xs text-muted-foreground ${isCurrent ? 'font-semibold text-foreground' : ''}`}>{step.label}</span>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Progress bar */}
-          <div className="mt-3 h-1 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.max(5, ((currentStepIndex + 1) / orderSteps.length) * 100)}%` }} />
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(5, ((currentStepIndex + 1) / orderSteps.length) * 100)}%` }} />
           </div>
         </div>
       )}
@@ -205,8 +232,8 @@ export default function OrderDetailPage() {
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">📦</div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground line-clamp-1">{item.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 break-words text-sm font-medium text-foreground">{item.name}</p>
                   <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatPrice(item.price)}</p>
                 </div>
                 <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(item.price * item.quantity)}</p>
@@ -230,11 +257,11 @@ export default function OrderDetailPage() {
               <MapPin className="h-4 w-4 text-primary" />
               <h3 className="text-base font-bold text-foreground">Shipping Address</h3>
             </div>
-            <p className="text-sm font-medium text-foreground">{order.shippingAddress.fullName}</p>
-            <p className="text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
-            <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine1}</p>
-            {order.shippingAddress.addressLine2 && <p className="text-sm text-muted-foreground">{order.shippingAddress.addressLine2}</p>}
-            <p className="text-sm text-muted-foreground">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
+            <p className="break-words text-sm font-medium text-foreground">{order.shippingAddress.fullName}</p>
+            <p className="break-words text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
+            <p className="break-words text-sm text-muted-foreground">{order.shippingAddress.addressLine1}</p>
+            {order.shippingAddress.addressLine2 && <p className="break-words text-sm text-muted-foreground">{order.shippingAddress.addressLine2}</p>}
+            <p className="break-words text-sm text-muted-foreground">{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
           </div>
 
           <div className="bg-card rounded-lg border border-border p-5">
@@ -273,7 +300,7 @@ export default function OrderDetailPage() {
           </div>
 
           {['pending', 'confirmed'].includes(order.orderStatus) && (
-            <Button variant="outline" className="w-full text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/40" onClick={handleCancel}>
+            <Button variant="outline" className="min-h-11 w-full text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/40" onClick={handleCancel}>
               Cancel Order
             </Button>
           )}

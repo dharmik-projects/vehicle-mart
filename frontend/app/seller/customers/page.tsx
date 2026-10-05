@@ -33,7 +33,7 @@ export default function SellerCustomers() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Customers</h1>
         <p className="text-sm text-muted-foreground">Customers who purchased your products</p>
@@ -53,14 +53,14 @@ export default function SellerCustomers() {
                     <span className="text-sm font-medium text-foreground">{c.user?.name?.charAt(0)?.toUpperCase() || "?"}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{c.user?.name || "Unknown"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{c.user?.name || "Unknown"}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.user?.email}</span>
-                      {c.user?.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.user.phone}</span>}
+                      <span className="flex min-w-0 items-center gap-1 break-all"><Mail className="h-3 w-3 shrink-0" />{c.user?.email}</span>
+                      {c.user?.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" />{c.user.phone}</span>}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-foreground">{formatPrice(c.totalSpent)}</p>
+                  <div className="text-right shrink-0 pl-1">
+                    <p className="text-sm font-bold text-foreground tabular-nums">{formatPrice(c.totalSpent)}</p>
                     <p className="text-xs text-muted-foreground">{c.totalOrders} order{c.totalOrders > 1 ? "s" : ""}</p>
                   </div>
                 </div>
@@ -69,10 +69,10 @@ export default function SellerCustomers() {
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /><span className="sr-only">Previous page</span></Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /><span className="sr-only">Next page</span></Button>
             </div>
           )}
         </>

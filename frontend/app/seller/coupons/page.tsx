@@ -103,13 +103,13 @@ export default function SellerCoupons() {
   if (!user || (user.role !== "seller" && user.role !== "admin")) return null;
 
   return (
-    <div className="space-y-5 fade-in">
+    <div className="vp-main space-y-5 fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Coupons</h1>
           <p className="text-sm text-muted-foreground">Create and manage discount coupons</p>
         </div>
-        <Button onClick={() => handleOpenForm()} className="rounded-lg w-fit"><Plus className="h-4 w-4 mr-2" /> Add Coupon</Button>
+        <Button onClick={() => handleOpenForm()} className="rounded-lg w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Add Coupon</Button>
       </div>
 
       {loading ? (
@@ -123,11 +123,11 @@ export default function SellerCoupons() {
               <div key={c._id} className="rounded-lg border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm font-mono text-foreground">{c.code}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-sm font-mono break-all text-foreground">{c.code}</p>
                       <Badge variant={c.isActive ? "success" : "secondary"} className="text-xs">{c.isActive ? "Active" : "Inactive"}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 break-words">
                       {c.discountType === "percentage" ? `${c.discountValue}% off` : `₹${c.discountValue} off`}
                       {c.minOrderAmount > 0 && ` • Min order ₹${c.minOrderAmount}`}
                       {c.maxDiscount && ` • Max ₹${c.maxDiscount}`}
@@ -138,18 +138,18 @@ export default function SellerCoupons() {
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => handleOpenForm(c)} className="text-muted-foreground hover:text-foreground"><Edit className="h-3 w-3" /></Button>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(c._id)}><Trash2 className="h-3 w-3" /></Button>
+                    <Button size="icon-sm" variant="ghost" aria-label="Edit coupon" onClick={() => handleOpenForm(c)} className="min-h-10 min-w-10 text-muted-foreground hover:text-foreground"><Edit className="h-3 w-3" /></Button>
+                    <Button size="icon-sm" variant="ghost" aria-label="Delete coupon" className="min-h-10 min-w-10 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(c._id)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /><span className="sr-only">Previous page</span></Button>
               <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="min-h-10 min-w-10" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /><span className="sr-only">Next page</span></Button>
             </div>
           )}
         </>
@@ -165,35 +165,35 @@ export default function SellerCoupons() {
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader><DialogTitle>{editingCoupon ? "Edit Coupon" : "Create Coupon"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div><Label className="text-xs">Coupon Code *</Label><Input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. SAVE10" className="mt-1 h-9" /></div>
+            <div><Label className="text-xs">Coupon Code *</Label><Input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. SAVE10" className="mt-1" /></div>
             <div><Label className="text-xs">Description</Label><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Type *</Label>
                 <Select value={form.discountType} onValueChange={(v) => setForm({ ...form, discountType: v })}>
-                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage</SelectItem>
                     <SelectItem value="fixed">Fixed Amount</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Value *</Label><Input type="number" required min="0" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: e.target.value })} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">Value *</Label><Input type="number" required min="0" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: e.target.value })} className="mt-1" /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label className="text-xs">Min Order (₹)</Label><Input type="number" min="0" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} className="mt-1 h-9" /></div>
-              <div><Label className="text-xs">Max Discount (₹)</Label><Input type="number" min="0" value={form.maxDiscount} onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">Min Order (₹)</Label><Input type="number" min="0" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} className="mt-1" /></div>
+              <div><Label className="text-xs">Max Discount (₹)</Label><Input type="number" min="0" value={form.maxDiscount} onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })} className="mt-1" /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label className="text-xs">Usage Limit</Label><Input type="number" min="0" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value })} placeholder="0 = unlimited" className="mt-1 h-9" /></div>
-              <div><Label className="text-xs">Expires *</Label><Input type="date" required value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="mt-1 h-9" /></div>
+              <div><Label className="text-xs">Usage Limit</Label><Input type="number" min="0" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value })} placeholder="0 = unlimited" className="mt-1" /></div>
+              <div><Label className="text-xs">Expires *</Label><Input type="date" required value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className="mt-1" /></div>
             </div>
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1 rounded-lg" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
-              <Button type="submit" className="flex-1 rounded-lg">{editingCoupon ? "Update" : "Create"}</Button>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="w-full min-h-11 rounded-lg sm:w-auto" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
+              <Button type="submit" className="w-full min-h-11 rounded-lg sm:w-auto">{editingCoupon ? "Update" : "Create"}</Button>
             </div>
           </form>
         </DialogContent>

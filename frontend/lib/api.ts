@@ -26,7 +26,24 @@ class ApiClient {
     localStorage.removeItem('user');
   }
 
-  private async refreshAccessToken(): Promise<boolean> {
+  /**
+   * Single-flight refresh. Several fetches often race the same expired access
+   * token; the backend rotates (single-uses) refresh tokens, so a second
+   * concurrent refresh with the old token would 401 and log the user out.
+   * All concurrent callers therefore share ONE refresh request.
+   */
+  private refreshInFlight: Promise<boolean> | null = null;
+
+  private refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.doRefresh().finally(() => {
+        this.refreshInFlight = null;
+      });
+    }
+    return this.refreshInFlight;
+  }
+
+  private async doRefresh(): Promise<boolean> {
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) return false;
 
@@ -42,10 +59,14 @@ class ApiClient {
         this.setTokens(data.accessToken, data.refreshToken);
         return true;
       }
+
+      // Definitive rejection (expired/rotated token) — end the session.
+      // Network / 5xx hiccups keep the tokens: a backend blip must not
+      // silently log the user out.
+      if (res.status >= 400 && res.status < 500) this.clearTokens();
     } catch {
-      // ignore
+      // transient network error — keep tokens, report failure
     }
-    this.clearTokens();
     return false;
   }
 

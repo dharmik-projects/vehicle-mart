@@ -76,13 +76,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    <div className="flex min-h-[calc(100vh-4rem)]">
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-primary text-primary-foreground transition-all duration-300 flex flex-col ${
-        collapsed ? "w-16" : "w-56"
+      {/* Below the sticky global header (h-16): off-canvas drawer on phones,
+          sticky column from lg with its own header row always visible. */}
+      <aside className={`fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)] w-64 max-w-[80%] bg-primary text-primary-foreground transition-all duration-300 flex flex-col ${
+        collapsed ? "lg:w-16" : "lg:w-56"
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 h-14 border-b border-white/10">
@@ -92,10 +94,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="font-semibold text-sm text-white">Admin</span>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-white/10 rounded-md text-white/60 hover:text-white">
+          <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="hidden lg:flex p-2.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-white/10 rounded-md text-white/60 hover:text-white">
+          <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="lg:hidden p-2.5 min-h-11 min-w-11 flex items-center justify-center hover:bg-white/10 rounded-md text-white/60 hover:text-white">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -105,7 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2.5 min-h-11 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
                   ? "bg-white/10 text-white"
                   : "text-white/60 hover:bg-white/10 hover:text-white"
@@ -119,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="p-2 border-t border-white/10">
-          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white w-full" title={collapsed ? "Logout" : undefined}>
+          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2.5 min-h-11 rounded-lg text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white w-full" title={collapsed ? "Logout" : undefined}>
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
@@ -127,8 +129,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 py-2 flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-muted rounded-md text-muted-foreground">
+        <div className="lg:hidden sticky top-16 z-30 bg-card border-b border-border px-4 py-2 flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} aria-label="Open menu" className="p-2.5 min-h-11 min-w-11 flex items-center justify-center hover:bg-muted rounded-md text-muted-foreground">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
@@ -136,7 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="font-semibold text-sm text-foreground">Admin Panel</span>
           </div>
         </div>
-        <div className="p-4 lg:p-6">{children}</div>
+        <div className="p-4 sm:p-5 lg:p-6">{children}</div>
       </div>
     </div>
   );

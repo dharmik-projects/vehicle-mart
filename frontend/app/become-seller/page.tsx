@@ -58,7 +58,7 @@ export default function BecomeSellerPage() {
           <div className="w-14 h-14 bg-muted text-foreground rounded-xl border border-border flex items-center justify-center mx-auto mb-3">
             <Store className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Become a Seller</h1>
+          <h1 className="text-xl font-display font-bold text-foreground sm:text-2xl">Become a Seller</h1>
           <p className="text-sm text-muted-foreground mt-1">Start selling your vehicle parts on VehiclePart</p>
         </div>
 

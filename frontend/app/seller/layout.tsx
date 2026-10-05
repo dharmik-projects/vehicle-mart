@@ -76,13 +76,16 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    <div className="flex min-h-[calc(100vh-4rem)]">
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} aria-hidden="true" />
       )}
 
-      <aside className={`fixed lg:sticky top-0 lg:top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300 flex flex-col ${
-        collapsed ? "w-16" : "w-56"
+      {/* Sidebar sits BELOW the sticky global header (h-16 / 4rem): on phones it's
+          an off-canvas drawer, from lg a sticky column that keeps its own header
+          row (collapse button) visible while scrolling. */}
+      <aside className={`fixed lg:sticky top-16 z-40 h-[calc(100vh-4rem)] w-64 max-w-[80%] lg:max-w-none bg-card border-r border-border transition-all duration-300 flex flex-col ${
+        collapsed ? "lg:w-16" : "lg:w-56"
       } ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 h-14 border-b border-border">
@@ -92,11 +95,11 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
               <span className="font-semibold text-sm text-foreground">Seller</span>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
+          <button onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar" className="hidden lg:flex p-2.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
+          <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="lg:hidden flex h-11 w-11 -mr-2 items-center justify-center hover:bg-muted rounded-md text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -105,7 +108,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive(item.href)
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -119,7 +122,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         </nav>
 
         <div className="p-2 border-t border-border">
-          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full" title={collapsed ? "Logout" : undefined}>
+          <button onClick={() => { logout(); router.push("/"); }} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full" title={collapsed ? "Logout" : undefined} aria-label="Logout">
             <LogOut className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Logout</span>}
           </button>
@@ -127,16 +130,16 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 py-2 flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="p-1.5 hover:bg-muted rounded-md text-muted-foreground">
+        <div className="lg:hidden sticky top-16 z-30 bg-card border-b border-border px-4 py-2 flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} aria-label="Open menu" className="flex h-11 w-11 -ml-2 shrink-0 items-center justify-center hover:bg-muted rounded-md text-muted-foreground">
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary text-primary-foreground rounded flex items-center justify-center text-xs font-bold">VP</div>
-            <span className="font-semibold text-sm text-foreground">Seller Panel</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 bg-primary text-primary-foreground rounded flex items-center justify-center text-xs font-bold shrink-0">VP</div>
+            <span className="font-semibold text-sm text-foreground truncate">Seller Panel</span>
           </div>
         </div>
-        <div className="p-4 lg:p-6">{children}</div>
+        <div className="p-4 sm:p-5 lg:p-6">{children}</div>
       </div>
     </div>
   );

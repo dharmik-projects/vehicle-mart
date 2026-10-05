@@ -70,7 +70,8 @@ export default function SellerOverview() {
     { label: "Active Products", value: stats?.activeProducts || 0, icon: Package },
     { label: "Total Orders", value: stats?.totalOrders || 0, icon: ShoppingCart },
     { label: "Items Sold", value: stats?.totalSold || 0, icon: TrendingUp },
-    // These two span two columns on lg so the 4-col grid still ends on a full row.
+    // These two span two columns on xl (4-col grid) so it still ends on a full row;
+    // below xl the grid is 2/3 cols and every card stays single-width.
     { label: "Paid Orders", value: stats?.paidOrders || 0, icon: CheckCircle, wide: true },
     { label: "Pending Revenue", value: formatPrice(stats?.pendingRevenue || 0), icon: Clock, wide: true },
   ];
@@ -85,35 +86,35 @@ export default function SellerOverview() {
   ];
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="vp-main space-y-6 fade-in">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Seller Dashboard</h1>
           <p className="text-sm text-muted-foreground">Welcome back, {user.name}</p>
         </div>
-        <Link href="/seller/products" className="w-fit">
-          <Button className="rounded-lg"><Package className="h-4 w-4 mr-2" /> Manage Products</Button>
+        <Link href="/seller/products" className="w-full sm:w-auto">
+          <Button className="w-full rounded-lg sm:w-auto"><Package className="h-4 w-4 mr-2" /> Manage Products</Button>
         </Link>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className={`vp-stat${i > 4 ? " lg:col-span-2" : ""}`}>
+            <div key={i} className={`vp-stat${i > 4 ? " xl:col-span-2" : ""}`}>
               <div className="animate-pulse space-y-2"><div className="h-4 bg-muted rounded w-1/2" /><div className="h-8 bg-muted rounded w-1/3" /></div>
             </div>
           ))}
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {statCards.map((s, i) => (
-              <div key={i} className={`vp-stat${s.wide ? " lg:col-span-2" : ""}`}>
+              <div key={i} className={`vp-stat${s.wide ? " xl:col-span-2" : ""}`}>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-muted p-2.5"><s.icon className="h-5 w-5 text-foreground" /></div>
+                  <div className="rounded-lg bg-muted p-2.5 shrink-0"><s.icon className="h-5 w-5 text-foreground" /></div>
                   <div className="min-w-0">
-                    <p className="truncate text-xs text-muted-foreground">{s.label}</p>
-                    <p className="text-base sm:text-xl font-bold text-foreground">{s.value}</p>
+                    <p className="line-clamp-2 text-xs sm:text-[13px] text-muted-foreground">{s.label}</p>
+                    <p className="text-lg sm:text-xl font-bold tabular-nums text-foreground">{s.value}</p>
                   </div>
                 </div>
               </div>
@@ -122,15 +123,15 @@ export default function SellerOverview() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Orders by Status */}
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Orders by Status</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {orderStatusCards.map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-border">
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-border min-w-0">
                     <s.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground truncate">{s.label}</p>
-                      <p className="text-base sm:text-lg font-bold text-foreground">{s.value}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{s.label}</p>
+                      <p className="text-base sm:text-lg font-bold tabular-nums text-foreground">{s.value}</p>
                     </div>
                   </div>
                 ))}
@@ -138,7 +139,7 @@ export default function SellerOverview() {
             </div>
 
             {/* Low Stock Alert */}
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Low Stock Alert</h3>
               {stats?.lowStockProducts > 0 ? (
                 <div className="flex items-center gap-3 p-3 rounded-lg border border-warning/30 bg-warning/10">
@@ -163,10 +164,10 @@ export default function SellerOverview() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Top Selling Products */}
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">Top Selling Products</h3>
-                <Link href="/seller/products" className="text-xs text-foreground hover:underline flex items-center gap-1 font-medium">
+                <Link href="/seller/products" className="flex min-h-9 items-center gap-1 py-1.5 text-xs text-foreground hover:underline font-medium">
                   View All <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -203,10 +204,10 @@ export default function SellerOverview() {
             </div>
 
             {/* Recent Orders */}
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">Recent Orders</h3>
-                <Link href="/seller/orders" className="text-xs text-foreground hover:underline flex items-center gap-1 font-medium">
+                <Link href="/seller/orders" className="flex min-h-9 items-center gap-1 py-1.5 text-xs text-foreground hover:underline font-medium">
                   View All <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -238,21 +239,21 @@ export default function SellerOverview() {
 
           {/* Monthly Sales */}
           {stats?.monthlySales && stats.monthlySales.length > 0 && (
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Sales</h3>
-              <div className="flex items-end gap-2 h-40">
+              <div className="flex items-end gap-1.5 sm:gap-2 h-40">
                 {stats.monthlySales.map((m: any, i: number) => {
                   const maxRevenue = Math.max(...stats.monthlySales.map((s: any) => s.revenue));
                   const height = maxRevenue > 0 ? (m.revenue / maxRevenue) * 100 : 0;
                   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-muted-foreground">{formatPrice(m.revenue)}</span>
+                    <div key={i} className="flex-1 min-w-0 flex flex-col items-center gap-1">
+                      <span className="hidden sm:block w-full truncate text-center text-xs text-muted-foreground tabular-nums">{formatPrice(m.revenue)}</span>
                       <div
                         className="w-full bg-primary rounded-t"
                         style={{ height: `${Math.max(height, 4)}%` }}
                       />
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] sm:text-xs text-muted-foreground truncate">
                         {monthNames[(m._id?.month || 1) - 1]}
                       </span>
                     </div>
