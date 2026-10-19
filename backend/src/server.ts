@@ -22,6 +22,13 @@ app.use(express.urlencoded({ extended: true }));
 // Gzip JSON API responses (only when the client accepts gzip)
 app.use('/api', compress);
 
+app.get('/', (_req, res) => {
+  res.json({
+    message: 'SeeSpare Backend is running',
+    status: 'ok',
+  });
+});
+
 // API routes
 app.use('/api', routes);
 
