@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://see-spare.onrender.com/api';
+
 
 interface FetchOptions extends RequestInit {
   body?: any;
@@ -72,7 +73,7 @@ class ApiClient {
 
   async fetch<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     const { body, headers: customHeaders, ...rest } = options;
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(customHeaders as Record<string, string>),
